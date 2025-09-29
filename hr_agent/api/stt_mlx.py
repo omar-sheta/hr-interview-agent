@@ -77,11 +77,9 @@ async def transcribe_audio_mlx(file_path: str, *, detailed: bool = False) -> str
         if norm_path != file_path:
             print(f"🔄 Normalized audio -> {norm_path}")
 
-        # Advanced decoding options (aligned with original OpenAI Whisper parameters) to reduce dropped words
+        # Optimized decoding options for MLX-Whisper to reduce dropped words
         options = {
-            "beam_size": 5,
-            "best_of": 5,
-            "temperature": 0.0,
+            "temperature": 0.0,  # Deterministic output
             "word_timestamps": True,  # request word-level timing if supported
             "condition_on_previous_text": True,
         }
@@ -147,7 +145,7 @@ async def transcribe_audio(audio_file: UploadFile = File(...), options: Transcri
 
     Enhancements:
     - Normalizes audio to 16kHz mono WAV (if ffmpeg available)
-    - Uses beam search + temperature=0 to reduce random deletions
+    - Uses temperature=0 for deterministic output to reduce random deletions
     - Optionally returns detailed segment & word timing diagnostics
     """
     try:
