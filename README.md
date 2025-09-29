@@ -190,19 +190,15 @@ hr_agent_final_attempt/
 - **AI Scoring**: 3-5 seconds per response (Gemma 27B)
 - **Memory Usage**: ~8GB peak (with Gemma model loaded)
 
-## 🔧 Configuration
+## Configuration
 
-Key configuration options in `hr_agent/config.py`:
+Create a `.env` file with:
 
-```python
-class Settings:
-    HOST = "0.0.0.0"
-    PORT = 8000
-    OLLAMA_BASE_URL = "http://localhost:11434"
-    GEMMA_MODEL = "gemma2:27b"
-    TTS_VOICE = "en_US-amy-medium"
-    UPLOAD_DIR = "hr_agent/uploads"
-    SESSION_DIR = "hr_agent/data/sessions"
+```bash
+HOST=0.0.0.0
+PORT=8000
+OLLAMA_BASE_URL=http://localhost:11434
+GEMMA_MODEL = "gemma3:27b"
 ```
 
 ## 🔧 Troubleshooting
@@ -216,7 +212,9 @@ class Settings:
 **Ollama Connection**
 - Verify Ollama is running: `ollama serve`
 - Check model is installed: `ollama list`
-- Ensure Gemma model is available: `ollama pull gemma2:27b`
+- No scoring results in summary
+- Ensure Gemma model is available: `ollama pull gemma3:27b`
+- Check Ollama service: `ollama list`
 
 **Audio Issues**
 - Check browser audio permissions

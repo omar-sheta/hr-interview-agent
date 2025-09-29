@@ -307,7 +307,7 @@ Check scoring system health.
 ```json
 {
   "status": "ok",
-  "model": "gemma2:27b",
+  "model": "gemma3:27b",
   "ollama_available": true,
   "model_loaded": true
 }
@@ -365,7 +365,7 @@ Currently, the API does not support WebSocket connections. All communication is 
 - **large**: ~3 GB, Very Slow, Excellent accuracy
 
 ### Gemma Model
-- **Model**: gemma2:27b
+- **Model**: gemma3:27b
 - **Size**: ~15 GB
 - **Inference Time**: 3-5 seconds per response
 - **Context Length**: 8192 tokens

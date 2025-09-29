@@ -28,7 +28,8 @@ cd frontend && npm install && cd ..
 
 # Start Ollama
 ollama serve &
-ollama pull gemma2:27b
+# Pull the Gemma model
+ollama pull gemma3:27b
 
 # Launch application
 ./start_dev.sh

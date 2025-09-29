@@ -85,7 +85,7 @@ class Settings:
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    GEMMA_MODEL: str = "gemma2:27b"
+    GEMMA_MODEL: str = "gemma3:27b"
     TTS_VOICE: str = "en_US-amy-medium"
     UPLOAD_DIR: str = "hr_agent/uploads"
     SESSION_DIR: str = "hr_agent/data/sessions"
@@ -143,7 +143,7 @@ models = {
 5. Question formatting and storage
 
 #### 4. Response Scoring (Gemma)
-**Technology:** Structured evaluation using Gemma 2:27B model
+**Technology:** Structured evaluation using Gemma 3:27B model
 
 **Scoring Rubric:**
 ```python
@@ -261,7 +261,7 @@ Transcript → Gemma Model → Score → Frontend
 ## Performance Considerations
 
 ### Memory Usage
-- **Gemma 2:27B Model**: ~15GB RAM when loaded
+- **Gemma 3:27B Model**: ~15GB RAM when loaded
 - **MLX-Whisper Large**: ~3GB VRAM
 - **Piper TTS**: ~100MB per voice model
 - **Session Data**: Minimal (JSON files)

@@ -109,7 +109,7 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    GEMMA_MODEL: str = "gemma2:27b"
+    GEMMA_MODEL: str = "gemma3:27b"
     
     class Config:
         env_file = ".env"
