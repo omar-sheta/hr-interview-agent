@@ -799,7 +799,7 @@ server {
 
 # API Configuration
 OLLAMA_BASE_URL=http://localhost:11434
-GEMMA_MODEL=gemma2:27b
+GEMMA_MODEL=gemma3:27b
 
 # Security Configuration
 SECRET_KEY=your-super-secret-key-here

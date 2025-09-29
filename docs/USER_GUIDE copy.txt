@@ -81,7 +81,7 @@ brew install ollama
    ollama serve
    
    # Download the Gemma model (this may take 10-15 minutes)
-   ollama pull gemma2:27b
+   ollama pull gemma3:27b
    ```
 
 ### Step 3: Launch the Application

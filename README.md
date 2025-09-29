@@ -64,7 +64,7 @@ A comprehensive, privacy-focused HR interview system featuring real-time speech 
    ollama serve
    
    # Pull Gemma model (in a new terminal)
-   ollama pull gemma2:27b
+   ollama pull gemma3:27b
    ```
 
 4. **Install frontend dependencies**

@@ -120,7 +120,7 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     environment:
-      - OLLAMA_MODELS=gemma2:27b
+      - OLLAMA_MODELS=gemma3:27b
 
 volumes:
   ollama_data:
@@ -265,7 +265,7 @@ DEBUG=false
 
 # AI Services
 OLLAMA_BASE_URL=http://localhost:11434
-GEMMA_MODEL=gemma2:27b
+GEMMA_MODEL=gemma3:27b
 TTS_VOICE=en_US-amy-medium
 
 # Storage
