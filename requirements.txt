@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-multipart
+ollama
+piper-tts
+openai-whisper
+torch
+torchaudio
+httpx

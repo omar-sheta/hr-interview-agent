@@ -1,0 +1,487 @@
+# Deployment Guide
+
+## Overview
+
+This guide covers deploying the HR Interview Agent in different environments, from local development to production deployment.
+
+## Local Development Setup
+
+### Prerequisites
+- Python 3.12+
+- Node.js 18+
+- Ollama with Gemma model
+- Apple Silicon Mac (recommended for MLX acceleration)
+
+### Quick Start
+```bash
+# Clone and setup
+git clone <repository-url>
+cd hr_agent_final_attempt
+
+# Backend setup
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Frontend setup
+cd frontend && npm install && cd ..
+
+# Start Ollama
+ollama serve &
+ollama pull gemma2:27b
+
+# Launch application
+./start_dev.sh
+```
+
+## Production Deployment
+
+### Docker Deployment
+
+#### 1. Create Dockerfile for Backend
+```dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY hr_agent/ ./hr_agent/
+COPY piper_voices/ ./piper_voices/
+
+# Create data directories
+RUN mkdir -p hr_agent/data/sessions hr_agent/uploads
+
+# Expose port
+EXPOSE 8000
+
+# Start command
+CMD ["uvicorn", "hr_agent.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+#### 2. Create Dockerfile for Frontend
+```dockerfile
+FROM node:18-alpine as build
+
+WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
+EXPOSE 80
+```
+
+#### 3. Docker Compose Configuration
+```yaml
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./hr_agent/data:/app/hr_agent/data
+      - ./hr_agent/uploads:/app/hr_agent/uploads
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - ollama
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_MODELS=gemma2:27b
+
+volumes:
+  ollama_data:
+```
+
+### Cloud Deployment Options
+
+#### AWS Deployment
+
+**Architecture:**
+- EC2 instance (c5.2xlarge or better for Gemma model)
+- S3 for file storage
+- Application Load Balancer
+- CloudWatch for monitoring
+
+**Setup Steps:**
+1. Launch EC2 instance with sufficient RAM (16GB+)
+2. Install Docker and Docker Compose
+3. Clone repository and build containers
+4. Configure security groups for ports 80, 8000, 11434
+5. Set up S3 bucket for file storage
+6. Configure CloudWatch logs
+
+#### Azure Deployment
+
+**Architecture:**
+- Azure Container Instances or App Service
+- Azure Blob Storage for files
+- Azure Application Gateway
+- Azure Monitor for logging
+
+#### Google Cloud Deployment
+
+**Architecture:**
+- Google Cloud Run or Compute Engine
+- Cloud Storage for files
+- Cloud Load Balancing
+- Cloud Logging
+
+### Kubernetes Deployment
+
+#### Backend Deployment
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hr-agent-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hr-agent-backend
+  template:
+    metadata:
+      labels:
+        app: hr-agent-backend
+    spec:
+      containers:
+      - name: backend
+        image: hr-agent-backend:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: OLLAMA_BASE_URL
+          value: "http://ollama-service:11434"
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "1"
+          limits:
+            memory: "8Gi"
+            cpu: "2"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hr-agent-backend-service
+spec:
+  selector:
+    app: hr-agent-backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+```
+
+#### Ollama Deployment
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+      - name: ollama
+        image: ollama/ollama:latest
+        ports:
+        - containerPort: 11434
+        resources:
+          requests:
+            memory: "16Gi"
+            cpu: "4"
+          limits:
+            memory: "32Gi"
+            cpu: "8"
+        volumeMounts:
+        - name: ollama-data
+          mountPath: /root/.ollama
+      volumes:
+      - name: ollama-data
+        persistentVolumeClaim:
+          claimName: ollama-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama-service
+spec:
+  selector:
+    app: ollama
+  ports:
+  - port: 11434
+    targetPort: 11434
+```
+
+## Environment Configuration
+
+### Production Environment Variables
+```bash
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+DEBUG=false
+
+# AI Services
+OLLAMA_BASE_URL=http://localhost:11434
+GEMMA_MODEL=gemma2:27b
+TTS_VOICE=en_US-amy-medium
+
+# Storage
+UPLOAD_DIR=/app/uploads
+SESSION_DIR=/app/data/sessions
+MAX_UPLOAD_SIZE=104857600  # 100MB
+
+# Security
+CORS_ORIGINS=["https://yourdomain.com"]
+SECRET_KEY=your-secret-key-here
+
+# Monitoring
+LOG_LEVEL=INFO
+SENTRY_DSN=your-sentry-dsn
+```
+
+### Frontend Environment Configuration
+```bash
+# API Configuration
+VITE_API_BASE_URL=https://api.yourdomain.com
+VITE_API_TIMEOUT=300000
+
+# Features
+VITE_ENABLE_DEBUG=false
+VITE_MAX_RECORDING_TIME=300000
+```
+
+## Performance Optimization
+
+### Backend Optimizations
+1. **Model Preloading**: Load all models at startup
+2. **Connection Pooling**: Use async HTTP clients
+3. **Caching**: Cache frequently accessed data
+4. **Resource Limits**: Set appropriate memory/CPU limits
+
+```python
+# Async HTTP client configuration
+httpx_client = httpx.AsyncClient(
+    timeout=httpx.Timeout(300.0),
+    limits=httpx.Limits(max_connections=100)
+)
+```
+
+### Frontend Optimizations
+1. **Code Splitting**: Lazy load components
+2. **Asset Optimization**: Compress images and fonts
+3. **Caching**: Implement service worker caching
+4. **Bundle Size**: Minimize JavaScript bundle
+
+```javascript
+// Lazy loading example
+const ScoringDashboard = lazy(() => import('./ScoringDashboard'));
+```
+
+## Monitoring and Observability
+
+### Application Metrics
+- Request latency and throughput
+- Model inference times
+- Error rates and types
+- Resource utilization
+
+### Health Checks
+```python
+# Comprehensive health check
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow(),
+        "services": {
+            "ollama": check_ollama_health(),
+            "mlx_whisper": check_mlx_health(),
+            "piper_tts": check_tts_health()
+        }
+    }
+```
+
+### Logging Configuration
+```python
+import logging
+import structlog
+
+# Structured logging setup
+logging.basicConfig(
+    format="%(message)s",
+    stream=sys.stdout,
+    level=logging.INFO,
+)
+
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.dev.ConsoleRenderer()
+    ],
+    wrapper_class=structlog.stdlib.BoundLogger,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+)
+```
+
+## Security Hardening
+
+### Production Security Checklist
+- [ ] Enable HTTPS with valid SSL certificates
+- [ ] Implement rate limiting
+- [ ] Add authentication and authorization
+- [ ] Validate and sanitize all inputs
+- [ ] Set up CORS properly
+- [ ] Use secrets management
+- [ ] Enable security headers
+- [ ] Regular security updates
+
+### NGINX Configuration
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+
+    # Frontend
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API proxy
+    location /api/ {
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+## Backup and Disaster Recovery
+
+### Data Backup Strategy
+1. **Session Data**: Regular backup of JSON files
+2. **Audio Files**: Backup uploaded audio responses
+3. **Model Files**: Backup custom-trained models
+4. **Configuration**: Version control for configs
+
+```bash
+#!/bin/bash
+# Backup script
+BACKUP_DIR="/backups/$(date +%Y%m%d)"
+mkdir -p "$BACKUP_DIR"
+
+# Backup session data
+tar -czf "$BACKUP_DIR/sessions.tar.gz" hr_agent/data/sessions/
+
+# Backup uploads
+tar -czf "$BACKUP_DIR/uploads.tar.gz" hr_agent/uploads/
+
+# Upload to cloud storage
+aws s3 sync "$BACKUP_DIR" s3://your-backup-bucket/
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Ollama Connection Issues:**
+```bash
+# Check if Ollama is running
+curl http://localhost:11434/api/tags
+
+# Restart Ollama service
+systemctl restart ollama
+```
+
+**MLX-Whisper Performance:**
+```bash
+# Check Apple Silicon optimization
+python -c "import mlx.core as mx; print(mx.metal.is_available())"
+```
+
+**Memory Issues:**
+```bash
+# Monitor memory usage
+htop
+
+# Check container resources
+docker stats
+```
+
+**Audio Issues:**
+```bash
+# Test FFmpeg installation
+ffmpeg -version
+
+# Check audio file format
+ffprobe audio_file.mp4
+```
+
+### Log Analysis
+```bash
+# Follow application logs
+tail -f /var/log/hr-agent/app.log
+
+# Search for errors
+grep -i error /var/log/hr-agent/app.log
+
+# Analyze performance
+grep "processing time" /var/log/hr-agent/app.log
+```
