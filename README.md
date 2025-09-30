@@ -2,7 +2,7 @@
 
 🎯 **AI-Powered Interview Assistant with GPU Acceleration**
 
-A comprehensive, privacy-focused HR interview system featuring real-time speech recognition, AI-powered question generation, intelligent scoring using Gemma model, and natural text-to-speech capabilities.
+A comprehensive, privacy-focused HR interview system featuring real-time speech recognition, AI-powered question generation, intelligent scoring using Gemma model, and **high-quality natural text-to-speech** capabilities.
 
 ![HR Interview Agent](assets/HIVE-logo-4-color.png)
 
@@ -10,26 +10,45 @@ A comprehensive, privacy-focused HR interview system featuring real-time speech 
 
 - **🎙️ Real-time Speech Recognition** - GPU-accelerated MLX-Whisper for instant transcription
 - **🧠 AI-Powered Scoring** - Gemma 3:27B model evaluates responses using structured HR rubrics
-- **🔊 Natural Text-to-Speech** - Piper voice synthesis for question audio playback
+- **🔊 High-Quality Text-to-Speech** - Piper high-quality voice synthesis (Lessac, Ryan, Joe, Bryce voices)
 - **📱 Modern Web Interface** - Responsive React frontend with real-time feedback
-- **🔒 Privacy-First** - All processing runs locally, no data leaves your machine
+- **🔒 Privacy-First** - Voice models are automatically downloaded and cached locally.
+
+### Voice Quality
+
+The system uses **high-quality Piper TTS voices** for natural-sounding speech synthesis:
+
+- **Primary Voice**: `en_US-lessac-high` (professional female voice)
+- **Alternative Voices**: `en_US-ryan-high`, `en_US-joe-high`, `en_US-bryce-high`
+- **Quality**: High-quality models (63MB) vs medium-quality (15MB)
+- **Features**: Better prosody, clearer articulation, more natural intonation
+
+Voice models are automatically downloaded and cached locally.
 - **⚡ GPU Acceleration** - Optimized for Apple Silicon and CUDA GPUs
 - **📊 Comprehensive Analytics** - Detailed scoring with linguistic and behavioral competency analysis
+- **🏗️ Client-Server Architecture** - Scalable FastAPI backend with persistent data storage
 
 ## 🏗️ Architecture
 
 ### Backend (FastAPI)
 - **Speech-to-Text**: MLX-Whisper for GPU-accelerated transcription
-- **Text-to-Speech**: Piper voice synthesis engine
+- **Text-to-Speech**: Piper high-quality voice synthesis (Lessac, Ryan, Joe, Bryce voices)
 - **AI Scoring**: Ollama integration with Gemma 3:27B model
 - **Question Generation**: AI-powered interview question creation
 - **Session Management**: Persistent interview state and audio storage
+- **Data Persistence**: JSON-based storage for interviews and transcripts
 
 ### Frontend (React + Vite)
 - **Interactive UI**: Modern, responsive interview interface
 - **Real-time Audio**: MediaRecorder API for seamless recording
 - **Progress Tracking**: Visual progress indicators and question navigation
 - **Score Visualization**: Comprehensive scoring dashboard
+
+### Client-Server Setup
+- **Centralized API**: FastAPI server handling all AI processing
+- **HTTPS Support**: Secure communication with self-signed certificates
+- **Multi-Client Support**: Multiple users can connect simultaneously
+- **Persistent Storage**: Interview data survives server restarts
 
 ## 🚀 Quick Start
 
@@ -74,15 +93,29 @@ A comprehensive, privacy-focused HR interview system featuring real-time speech 
    cd ..
    ```
 
-5. **Start the development server**
+5. **Start the client-server system**
    ```bash
-   ./start_dev.sh
+   # Start both client and server with HTTPS
+   cd client_server
+   ./start_client_server.sh
    ```
 
 6. **Open your browser**
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:8000
-   - API Documentation: http://localhost:8000/docs
+   - **Web Client**: https://localhost:8443 (HTTPS with self-signed cert)
+   - **API Server**: https://localhost:8002 (HTTPS API)
+   - **API Docs**: https://localhost:8002/docs
+
+### Alternative: Development Mode
+
+For development with hot-reloading:
+```bash
+./start_dev.sh  # Starts development servers on HTTP
+```
+
+**URLs:**
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- API Documentation: http://localhost:8000/docs
 
 ## 📋 Usage Guide
 
@@ -128,12 +161,12 @@ Each response receives a detailed score out of 10 with specific feedback.
 
 ```
 hr_agent_final_attempt/
-├── hr_agent/                  # Backend FastAPI application
+├── hr_agent/                  # Core FastAPI application
 │   ├── api/                   # API route handlers
 │   │   ├── interviews.py      # Interview session management
 │   │   ├── questions.py       # Question generation
 │   │   ├── scoring.py         # AI-powered scoring system
-│   │   ├── tts.py            # Text-to-speech engine
+│   │   ├── tts.py            # High-quality TTS (Piper voices)
 │   │   └── stt_mlx.py        # Speech-to-text (MLX-Whisper)
 │   ├── data/                  # Session storage
 │   │   └── sessions/          # Interview session files
@@ -141,14 +174,27 @@ hr_agent_final_attempt/
 │   ├── config.py             # Configuration settings
 │   ├── models.py             # ML model management
 │   └── main.py               # FastAPI application entry point
-├── frontend/                  # React frontend application
+├── client_server/            # Production client-server setup
+│   ├── server/                # FastAPI server with data persistence
+│   │   ├── main.py           # Server application
+│   │   ├── data_manager.py   # Persistent data management
+│   │   ├── piper_voices/     # High-quality TTS voice models
+│   │   └── data/             # Persistent interview data
+│   ├── client/                # Web client application
+│   │   ├── index.html        # Interview interface
+│   │   └── hr_client.py      # Python client (optional)
+│   ├── start_client_server.sh # Production launcher
+│   └── README.md             # Client-server documentation
+├── frontend/                  # Development React frontend
 │   ├── src/
 │   │   ├── App.jsx           # Main application component
 │   │   ├── main.jsx          # React entry point
 │   │   └── index.css         # Tailwind CSS styles
 │   ├── public/               # Static assets
 │   └── package.json          # Node.js dependencies
-├── piper_voices/             # TTS voice models
+├── piper_voices/             # TTS voice models (Lessac, Ryan, Joe, Bryce)
+├── assets/                   # Static assets and logos
+├── docs/                     # Documentation
 ├── requirements.txt          # Python dependencies
 ├── start_dev.sh             # Development server launcher
 └── README.md                # This documentation
@@ -174,7 +220,7 @@ hr_agent_final_attempt/
 **Backend (Python):**
 - FastAPI 0.104+
 - MLX-Whisper (Apple Silicon optimization)
-- Piper-TTS (voice synthesis)
+- Piper-TTS (high-quality voice synthesis)
 - httpx (async HTTP client)
 - Ollama Python client
 
@@ -186,9 +232,10 @@ hr_agent_final_attempt/
 ### Performance Metrics
 
 - **Transcription**: <2 seconds for 30-second audio clips (Apple Silicon)
-- **TTS Generation**: <1 second for typical questions
+- **TTS Generation**: <1 second for typical questions (high-quality voices)
 - **AI Scoring**: 3-5 seconds per response (Gemma 27B)
 - **Memory Usage**: ~8GB peak (with Gemma model loaded)
+- **Voice Quality**: High-quality Piper voices (63MB models vs 15MB medium)
 
 ## Configuration
 
@@ -218,8 +265,9 @@ GEMMA_MODEL = "gemma3:27b"
 
 **Audio Issues**
 - Check browser audio permissions
-- Verify TTS voice files are downloaded in `piper_voices/`
+- Verify high-quality TTS voice files are downloaded in `piper_voices/` and `client_server/server/piper_voices/`
 - Test audio endpoints: `curl http://localhost:8000/api/tts/health`
+- Voice quality issues: Run `python client_server/server/download_hq_voices.py` to download high-quality voices
 
 **GPU Acceleration**
 - MLX-Whisper requires Apple Silicon for optimal performance
