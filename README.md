@@ -1,6 +1,3 @@
-Here’s your complete `README.md` (ready to paste).
-Key factual references I relied on are listed right after the file.
-
 ```markdown
 # HR Interview Agent — Client–Server Architecture
 
@@ -339,6 +336,4 @@ Project code is licensed under **MIT** (see `LICENSE`).
 - Mic over HTTPS requirement: MDN + Mozilla blog. :contentReference[oaicite:3]{index=3}  
 - Concrete cloud prices to motivate self-hosting: Google STT **$0.016/min** (v2), Amazon Polly neural TTS **$16–$19.20 per 1M chars**; OpenAI’s realtime/audio pricing posts give ballpark per-minute equivalents. :contentReference[oaicite:4]{index=4}
 
-If you want, I can also generate a **lighter-GPU variant** of the README (e.g., targeting `gemma3:12b`), or weld in your exact `hr_client.py` endpoints and example curl commands.
-::contentReference[oaicite:5]{index=5}
 ```
