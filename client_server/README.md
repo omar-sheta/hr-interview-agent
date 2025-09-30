@@ -2,7 +2,26 @@
 
 ## Overview
 
-This directory contains a simple client-server architecture for the HR Interview Agent where:
+Th## 🎯 Interview Experience Upgrades
+
+### 🎤 Smart Auto-Stop Recording
+- **Intelligent Timer**: Auto-stop timer only starts after user begins speaking (not immediately)
+- **Audio Processing**: Auto-stopped recordings are processed instead of being discarded
+- **Positive Feedback**: Shows "Processing your response..." instead of error messages
+- **5-Second Detection**: Consistent 5-second duration for both silence and noise detection
+- **No Wasted Audio**: System captures and uses whatever audio was recorded
+
+### 🎵 Enhanced Audio Experience
+- Question audio playback halts when recording or skipping
+- Each question autoplays on arrival for seamless flow
+- Candidates can redo questions before committing their response
+- Upload audio files as an alternative to live recording
+
+### 🌐 Network & Connectivity
+- Automatic API host detection for network testing
+- URL parameter support (`?api_host=SERVER_IP`) for cross-device access
+- Clean, distraction-free interface without unnecessary troubleshooting panels
+- HTTPS support with self-signed certificates for microphone access across networksrectory contains a simple client-server architecture for the HR Interview Agent where:
 
 - **Server**: Centralized FastAPI server that handles all AI processing (STT, TTS, LLM)
 - **Client**: Lightweight clients that communicate with the server via HTTP API
