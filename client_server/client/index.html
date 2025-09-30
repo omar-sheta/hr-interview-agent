@@ -29,6 +29,18 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+        .sortable-drag {
+            opacity: 0.8 !important;
+        }
+        .sortable-ghost {
+            opacity: 0.4 !important;
+        }
+        .no-select {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-gray-100 text-gray-800">
@@ -58,6 +70,9 @@
                 <div class="flex justify-center items-center gap-2 mt-2">
                     <div id="server-indicator" class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                     <span id="server-status" class="text-xs text-green-300">Checking Server...</span>
+                </div>
+                <div class="text-center mt-1">
+                    <span id="api-info" class="text-xs text-blue-200 opacity-75">API: Loading...</span>
                 </div>
             </div>
             
@@ -161,6 +176,8 @@
                 </div>
             </div>
             
+
+            
             <!-- Generated Questions Display -->
             <div id="generated-questions" class="mt-6" style="display: none;">
                 <h3 class="font-semibold text-lg mb-3">Generated Questions:</h3>
@@ -175,13 +192,25 @@
         </div>
 
         <!-- Question Review Section -->
-        <div id="review-section" class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md" style="display: none;">
-            <div class="text-center mb-6">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-2">Review & Approve Questions</h2>
-                <p class="text-gray-600">Please review each question and approve the ones you want to use in the interview.</p>
+        <div id="review-section" class="max-w-5xl mx-auto bg-gray-50 p-8 rounded-xl shadow-lg" style="display: none;">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h2 class="text-3xl font-bold text-gray-900 mb-3 flex items-center gap-3">
+                    📝 Review & Approve Questions
+                </h2>
+                <p class="text-gray-600 mb-4">Review each question below. You can drag to reorder, edit with AI, and select which ones to use.</p>
+                
+                <div class="flex items-center gap-4 text-sm">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span class="approval-count font-medium text-gray-700">0 of 0 questions approved</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-gray-500">
+                        <span>💡 Tip: Drag ⋮⋮ to reorder, click ✏️ to edit</span>
+                    </div>
+                </div>
             </div>
             
-            <div id="review-questions-list" class="space-y-4"></div>
+            <div id="review-questions-list" class="space-y-3"></div>
             
             <!-- Review Action Buttons -->
             <div class="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
@@ -221,7 +250,7 @@
                         <span class="flex items-center gap-3">
                             <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
-                            </svg>
+                        </svg>
                             Approve & Start Interview
                         </span>
                     </button>
@@ -230,7 +259,7 @@
         </div>
 
         <!-- Interview In Progress Section -->
-        <div id="interview-section" class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-md" style="display: none;">
+        <div id="interview-section" class="hidden w-full max-w-4xl">
             <!-- Mic troubleshooting banner -->
             <div id="mic-warning" class="mb-4 p-3 rounded-lg border border-yellow-300 bg-yellow-50" style="display: none;">
                 <div class="flex items-center justify-between gap-3">
@@ -380,32 +409,96 @@
                 </button>
             </div>
         </div>
+
+        <!-- Edit Question Modal -->
+        <div id="edit-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-2xl font-bold text-gray-900">✨ Edit Question with AI</h3>
+                        <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Original Question:</label>
+                        <div id="edit-question-text" class="bg-gray-50 border border-gray-200 p-4 rounded-lg text-gray-800 leading-relaxed"></div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label for="edit-instruction" class="block text-sm font-semibold text-gray-700 mb-2">How would you like to modify this question?</label>
+                        <input type="text" id="edit-instruction" 
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                               placeholder="e.g., 'Make it more technical', 'Focus on leadership skills', 'Add specific examples'">
+                        <p class="text-xs text-gray-500 mt-1">Be specific about what changes you want to see</p>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button onclick="closeEditModal()" 
+                                class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                            Cancel
+                        </button>
+                        <button id="submit-edit-btn" onclick="submitEditedQuestion()" 
+                                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2">
+                            <span>✨ Apply Changes</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <script>
-    const DEFAULT_API_HOST = '127.0.0.1';
-    const resolvedHost = window.location.hostname || DEFAULT_API_HOST;
-    const resolvedProtocol = window.location.protocol.startsWith('https') ? 'https' : 'http';
-    const API_PORT = resolvedProtocol === 'https' ? '8002' : '8001';
-    const API_BASE = `${resolvedProtocol}://${resolvedHost}:${API_PORT}`;
-    const MEDIA_RECORDER_PREFERENCES = [
-        { type: 'audio/webm;codecs=opus', extension: 'webm' },
-        { type: 'audio/webm', extension: 'webm' },
-        { type: 'audio/ogg;codecs=opus', extension: 'ogg' },
-        { type: 'audio/ogg', extension: 'ogg' },
-        { type: 'audio/mp4;codecs=mp4a.40.2', extension: 'm4a' },
-        { type: 'audio/mp4', extension: 'm4a' },
-        { type: 'audio/mpeg', extension: 'mp3' },
-        { type: 'audio/x-m4a', extension: 'm4a' }
-    ];
-    const USER_AGENT = navigator.userAgent || '';
-    const IS_SAFARI = /Safari/i.test(USER_AGENT) && !/Chrome/i.test(USER_AGENT);
-    const IS_SECURE_CONTEXT = Boolean(window.isSecureContext);
-    const SILENCE_THRESHOLD = 0.015; // RMS level considered silent
-        const SILENCE_DURATION_MS = 2000;
-        const NOISE_RMS_THRESHOLD = 0.4; // RMS level considered noisy
-        const NOISE_ZCR_THRESHOLD = 0.6; // High zero-crossing rate indicates noise
-        const NOISE_DURATION_MS = 1500;
+        // Dynamically determine the correct API base URL
+        const currentHost = window.location.hostname;
+        const currentProtocol = window.location.protocol;
+        const isSecure = currentProtocol === 'https:';
+        
+        // Check if API_HOST is provided via URL parameters (useful for network testing)
+        const urlParams = new URLSearchParams(window.location.search);
+        const customApiHost = urlParams.get('api_host');
+        const customApiPort = urlParams.get('api_port');
+        
+        // Determine the API host and port
+        let apiHost = currentHost;
+        let apiPort = isSecure ? '8002' : '8001';
+        
+        if (customApiHost) {
+            apiHost = customApiHost;
+            console.log('Using custom API host from URL parameter:', customApiHost);
+        }
+        
+        if (customApiPort) {
+            apiPort = customApiPort;
+            console.log('Using custom API port from URL parameter:', customApiPort);
+        }
+        
+        const API_BASE = `${currentProtocol}//${apiHost}:${apiPort}`;
+        
+        console.log('API Configuration:');
+        console.log('  Current Host:', currentHost);
+        console.log('  API Host:', apiHost);
+        console.log('  API Port:', apiPort);
+        console.log('  Is Secure:', isSecure);
+        console.log('  Final API Base URL:', API_BASE);
+        console.log('  Tip: Add ?api_host=SERVER_IP to URL if server is on different machine');
+        const MEDIA_RECORDER_PREFERENCES = [
+            { type: 'audio/webm;codecs=opus', extension: 'webm' },
+            { type: 'audio/webm', extension: 'webm' },
+            { type: 'audio/ogg;codecs=opus', extension: 'ogg' },
+            { type: 'audio/ogg', extension: 'ogg' },
+            { type: 'audio/mp4;codecs=mp4a.40.2', extension: 'm4a' },
+            { type: 'audio/mp4', extension: 'm4a' },
+            { type: 'audio/mpeg', extension: 'mp3' },
+            { type: 'audio/x-m4a', extension: 'm4a' }
+        ];
+        const USER_AGENT = navigator.userAgent || '';
+        const IS_SAFARI = /Safari/i.test(USER_AGENT) && !/Chrome/i.test(USER_AGENT);
+        const IS_SECURE_CONTEXT = Boolean(window.isSecureContext);
+        const SILENCE_THRESHOLD = 0.01; // RMS level considered silent (more sensitive)
+        const SILENCE_DURATION_MS = 5000; // 5 seconds of silence after speaking starts
+        const NOISE_RMS_THRESHOLD = 0.3; // RMS level considered noisy (more sensitive)
+        const NOISE_ZCR_THRESHOLD = 0.5; // High zero-crossing rate indicates noise (more sensitive)
+        const NOISE_DURATION_MS = 5000; // 5 seconds of noise after speaking starts
 
         // Application State
         let appState = {
@@ -427,7 +520,6 @@
             audioContext: null,
             audioResumeHandlerAttached: false,
             micStream: null,
-            silenceDetection: null,
             questionAudio: null,
             isPlayingQuestion: false,
             questionSource: 'ollama',
@@ -439,13 +531,27 @@
             autoStopReason: null,
             recorderSupported: typeof MediaRecorder !== 'undefined',
             recordingMimeType: '',
-            recordingExtension: 'webm'
+            recordingExtension: 'webm',
+            speakingDetected: false, // Track if user has started speaking
+            speakingStartTime: null // When speaking was first detected
         };
 
         // Initialize app on page load
         window.onload = function() {
             checkServerHealth();
             initializeApp();
+            
+            // Debug: Test button functionality
+            console.log('Page loaded. Testing button bindings...');
+            
+            // Expose functions globally for debugging
+            window.debugFunctions = {
+                selectAllQuestions,
+                clearAllQuestions,
+                updateApprovalCount,
+                approveAndStartInterview,
+                goBackToSetup
+            };
         };
 
         function initializeApp() {
@@ -462,7 +568,11 @@
                     appState.candidateName = event.target.value.trim();
                 });
             }
+            
+
         }
+        
+
 
         function mimeTypeToExtension(mimeType) {
             if (!mimeType) {
@@ -620,18 +730,72 @@
         async function checkServerHealth() {
             const indicator = document.getElementById('server-indicator');
             const status = document.getElementById('server-status');
+            const apiInfo = document.getElementById('api-info');
+            
+            // Always show the API URL being used
+            if (apiInfo) {
+                const apiHost = API_BASE.split('://')[1]; // Remove protocol
+                apiInfo.textContent = `API: ${apiHost}`;
+            }
             
             try {
-                const response = await fetch(`${API_BASE}/health`);
+                console.log('Checking server health at:', `${API_BASE}/health`);
+                
+                // Create a timeout promise
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('Request timeout after 5 seconds')), 5000);
+                });
+                
+                // Race between fetch and timeout
+                const response = await Promise.race([
+                    fetch(`${API_BASE}/health`, {
+                        method: 'GET',
+                        mode: 'cors',  // Explicitly set CORS mode
+                        cache: 'no-cache'
+                    }),
+                    timeoutPromise
+                ]);
+                
+                if (!response.ok) {
+                    throw new Error(`Server responded with status: ${response.status} ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                console.log('Server health check successful:', data);
                 
                 indicator.className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
                 status.textContent = 'Server Online';
                 status.className = 'text-xs text-green-300';
+                
             } catch (error) {
+                console.error('Server health check failed:', error);
+                console.error('API_BASE:', API_BASE);
+                console.error('Current location:', window.location.href);
+                console.error('Network info:', {
+                    online: navigator.onLine,
+                    userAgent: navigator.userAgent
+                });
+                
                 indicator.className = 'w-2 h-2 bg-red-400 rounded-full animate-pulse';
-                status.textContent = 'Server Offline';
+                
+                let errorMessage = 'Server Offline';
+                if (error.message.includes('timeout')) {
+                    errorMessage = 'Server Timeout';
+                } else if (error.message.includes('fetch')) {
+                    errorMessage = 'Connection Failed';
+                } else if (error.message.includes('CORS')) {
+                    errorMessage = 'CORS Error';
+                }
+                
+                status.textContent = errorMessage;
                 status.className = 'text-xs text-red-300';
+                
+                // Add helpful error info
+                console.log('🔧 Troubleshooting Tips:');
+                console.log(`1. Verify server is running at: ${API_BASE}`);
+                console.log('2. Check if server allows CORS from this origin');
+                console.log('3. For network testing, try adding ?api_host=SERVER_IP to the URL');
+                console.log(`4. Example: ${window.location.origin}${window.location.pathname}?api_host=192.168.1.100`);
             }
         }
 
@@ -746,28 +910,57 @@
 
                         const now = performance.now();
 
-                        if (rms < SILENCE_THRESHOLD) {
-                            if (!appState.silenceStart) {
-                                appState.silenceStart = now;
-                            } else if (now - appState.silenceStart > SILENCE_DURATION_MS) {
-                                autoStopRecording('silence');
-                            }
-                        } else {
+                        // Check if user is speaking (above silence threshold and below noise threshold)
+                        const isSpeaking = rms > SILENCE_THRESHOLD && !(rms > NOISE_RMS_THRESHOLD && zcr > NOISE_ZCR_THRESHOLD);
+                        
+                        // Detect when speaking starts
+                        if (isSpeaking && !appState.speakingDetected) {
+                            appState.speakingDetected = true;
+                            appState.speakingStartTime = now;
+                            console.log('🎤 Speaking detected, auto-stop timer will start after silence/noise');
+                            // Reset silence and noise timers
                             appState.silenceStart = null;
-                        }
-
-                        if (rms > NOISE_RMS_THRESHOLD && zcr > NOISE_ZCR_THRESHOLD) {
-                            if (!appState.noiseStart) {
-                                appState.noiseStart = now;
-                            } else if (now - appState.noiseStart > NOISE_DURATION_MS) {
-                                autoStopRecording('noise');
-                            }
-                        } else {
                             appState.noiseStart = null;
                         }
+                        
+                        // Only start counting silence/noise AFTER speaking has been detected
+                        if (appState.speakingDetected) {
+                            if (rms < SILENCE_THRESHOLD) {
+                                // User is silent after speaking started
+                                if (!appState.silenceStart) {
+                                    appState.silenceStart = now;
+                                    console.log('🔇 Silence detected after speaking, starting 5-second timer');
+                                } else if (now - appState.silenceStart >= SILENCE_DURATION_MS) {
+                                    console.log('🔇 5 seconds of silence detected, auto-stopping recording');
+                                    autoStopRecording('silence');
+                                    return;
+                                }
+                                // Reset noise timer since we're in silence
+                                appState.noiseStart = null;
+                            } else if (rms > NOISE_RMS_THRESHOLD && zcr > NOISE_ZCR_THRESHOLD) {
+                                // User has excessive noise after speaking started
+                                if (!appState.noiseStart) {
+                                    appState.noiseStart = now;
+                                    console.log('📢 Excessive noise detected after speaking, starting 5-second timer');
+                                } else if (now - appState.noiseStart >= NOISE_DURATION_MS) {
+                                    console.log('📢 5 seconds of excessive noise detected, auto-stopping recording');
+                                    autoStopRecording('noise');
+                                    return;
+                                }
+                                // Reset silence timer since we're in noise
+                                appState.silenceStart = null;
+                            } else {
+                                // User is speaking normally, reset both timers
+                                appState.silenceStart = null;
+                                appState.noiseStart = null;
+                            }
+                        }
                     } else {
+                        // Reset all speaking detection when not recording
                         appState.silenceStart = null;
                         appState.noiseStart = null;
+                        appState.speakingDetected = false;
+                        appState.speakingStartTime = null;
                     }
 
                     requestAnimationFrame(updateMicLevel);
@@ -828,6 +1021,14 @@
             if (!appState.isRecording || !appState.mediaRecorder) return;
             if (appState.autoStopReason) return;
             appState.autoStopReason = reason;
+            
+            // Provide user feedback
+            if (reason === 'silence') {
+                showRecordingAlert('🔇 Recording stopped automatically - 5 seconds of silence detected after speaking', 'info');
+            } else if (reason === 'noise') {
+                showRecordingAlert('📢 Recording stopped automatically - 5 seconds of excessive noise detected after speaking', 'info');
+            }
+            
             stopRecording(true);
         }
 
@@ -861,27 +1062,30 @@
             const prompt = `Generate ${numQuestions} interview questions for this job description:\n\n${jobDescription}\n\nProvide only the questions, numbered 1-${numQuestions}.`;
             
             try {
+                console.log('Making request to:', `${API_BASE}/generate`);
+                console.log('Request data:', {
+                    job_description: jobDescription,
+                    job_role: jobRole || null,
+                    num_questions: numQuestions
+                });
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
                 const response = await fetch(`${API_BASE}/generate`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        messages: [
-                            {
-                                role: 'user',
-                                content: prompt
-                            }
-                        ],
-                        prompt,
-                        model: 'gemma3:27b',
-                        temperature: 0.7,
-                        max_tokens: 1000,
                         job_description: jobDescription,
                         job_role: jobRole || null,
                         num_questions: numQuestions
-                    })
+                    }),
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
 
                 const result = await response.json();
 
@@ -898,6 +1102,7 @@
                     }
 
                     appState.questions = questionsList;
+                    window.interviewQuestions = questionsList; // Also store globally for consistency
                     appState.questionSource = result.source || 'unknown';
                     appState.usedFallback = Boolean(result.used_fallback);
                     appState.fallbackReason = result.fallback_reason || '';
@@ -908,7 +1113,40 @@
                     throw new Error(result.detail || 'Failed to generate questions');
                 }
             } catch (error) {
-                alert('Error generating questions: ' + error.message);
+                console.error('Full error details:', error);
+                console.error('Error type:', error.name);
+                console.error('Error message:', error.message);
+                console.error('API URL attempted:', `${API_BASE}/generate`);
+                
+                let errorMessage = 'Unknown error occurred';
+                let troubleshootingTip = '';
+                
+                if (error.name === 'AbortError') {
+                    errorMessage = 'Request timed out (30 seconds). Please try again.';
+                    troubleshootingTip = 'Server may be overloaded or starting up.';
+                } else if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+                    errorMessage = 'Cannot connect to server';
+                    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                        troubleshootingTip = `Network testing detected. Make sure the server is running at ${API_BASE} and accessible from this device.`;
+                    } else {
+                        troubleshootingTip = 'Please check if the server is running locally.';
+                    }
+                } else if (error.message && error.message.includes('CORS')) {
+                    errorMessage = 'Cross-origin request blocked';
+                    troubleshootingTip = 'Server CORS configuration may need updating for network access.';
+                } else if (error.message && error.message.includes('Load failed')) {
+                    errorMessage = 'Connection failed - server unreachable';
+                    troubleshootingTip = `Cannot reach server at ${API_BASE}. Check server status and network connectivity.`;
+                } else {
+                    errorMessage = error.message || 'Request failed';
+                    troubleshootingTip = 'Check console for detailed error information.';
+                }
+                
+                const fullMessage = troubleshootingTip ? 
+                    `${errorMessage}\n\n💡 ${troubleshootingTip}` : 
+                    errorMessage;
+                
+                alert('Error generating questions: ' + fullMessage);
             } finally {
                 generateBtn.disabled = false;
                 loadingMessage.style.display = 'none';
@@ -960,84 +1198,377 @@
             document.getElementById('setup-section').style.display = 'none';
             document.getElementById('review-section').style.display = 'block';
             
-            displayQuestionsForReview();
+            const questionsToShow = appState.questions || window.interviewQuestions || [];
+            console.log('Questions to show in review:', questionsToShow);
+            displayQuestionsForReview(questionsToShow);
             appState.currentScreen = 'questions_approved';
         }
 
-        function displayQuestionsForReview() {
-            const reviewContainer = document.getElementById('review-questions-list');
-            reviewContainer.innerHTML = '';
-            
-            appState.questions.forEach((question, index) => {
-                const questionDiv = document.createElement('div');
-                questionDiv.className = 'bg-gray-50 p-4 rounded-lg border border-gray-200';
-                questionDiv.innerHTML = `
-                    <div class="flex items-start gap-3">
-                        <div class="flex-shrink-0 mt-1">
-                            <input 
-                                type="checkbox" 
-                                id="question-${index}" 
-                                class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" 
-                                onchange="updateApprovalCount()"
-                            />
-                        </div>
-                        <label for="question-${index}" class="flex-1 cursor-pointer">
-                            <div class="font-medium text-gray-900 mb-1">Question ${index + 1}</div>
-                            <div class="text-gray-700">${question}</div>
-                        </label>
-                    </div>
-                `;
-                reviewContainer.appendChild(questionDiv);
-            });
-            
-            updateApprovalCount();
-        }
+        // Display questions for review
+        function displayQuestionsForReview(questions) {
+            const reviewSection = document.getElementById('review-section');
+            const questionsList = document.getElementById('review-questions-list');
+            questionsList.innerHTML = '';
 
-        function updateApprovalCount() {
-            const checkboxes = document.querySelectorAll('#review-questions-list input[type="checkbox"]');
-            const approvedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-            const totalCount = checkboxes.length;
-            
-            document.getElementById('approval-count').textContent = `${approvedCount} of ${totalCount} questions approved`;
-            
+            if (!questions || !Array.isArray(questions) || questions.length === 0) {
+                console.log('No questions to display:', questions);
+                questionsList.innerHTML = '<li class="p-3 text-gray-500 text-center">No questions generated</li>';
+                return;
+            }
+
+            console.log('Displaying questions:', questions);
+            questions.forEach((q, index) => {
+                const li = document.createElement('li');
+                li.className = 'flex items-start gap-3 p-4 bg-white border border-gray-200 rounded-lg mb-3 shadow-sm hover:shadow-md transition-all duration-200 hover:border-blue-300';
+                li.dataset.index = index;
+
+                // Drag handle
+                const dragHandle = document.createElement('div');
+                dragHandle.innerHTML = '☰';
+                dragHandle.className = 'text-gray-400 text-lg leading-none pt-1 cursor-move select-none hover:text-gray-600';
+                dragHandle.title = 'Drag to reorder';
+                dragHandle.style.userSelect = 'none';
+                dragHandle.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                });
+                dragHandle.addEventListener('selectstart', function(e) {
+                    e.preventDefault();
+                });
+
+                // Checkbox
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 mt-1 no-drag';
+                checkbox.checked = false; // Default to not selected
+                checkbox.addEventListener('change', updateApprovalCount);
+
+                // Question content
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'flex-grow';
+                
+                const questionNumber = document.createElement('div');
+                questionNumber.textContent = `Question ${index + 1}`;
+                questionNumber.className = 'text-sm font-semibold text-blue-600 mb-1';
+                
+                const textSpan = document.createElement('div');
+                textSpan.textContent = q;
+                textSpan.className = 'text-gray-800 leading-relaxed';
+
+                contentDiv.appendChild(questionNumber);
+                contentDiv.appendChild(textSpan);
+
+                // Edit button
+                const editButton = document.createElement('button');
+                editButton.innerHTML = '✏️';
+                editButton.title = 'Edit with AI';
+                editButton.className = 'text-gray-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors duration-200 flex-shrink-0 no-drag';
+                editButton.onclick = (e) => {
+                    e.stopPropagation();
+                    openEditModal(index);
+                };
+                
+                li.appendChild(dragHandle);
+                li.appendChild(checkbox);
+                li.appendChild(contentDiv);
+                li.appendChild(editButton);
+                questionsList.appendChild(li);
+            });
+
+            reviewSection.classList.remove('hidden');
             const approveBtn = document.getElementById('approve-btn');
-            approveBtn.disabled = approvedCount === 0;
-        }
-
-        function selectAllQuestions() {
-            const checkboxes = document.querySelectorAll('#review-questions-list input[type="checkbox"]');
-            Array.from(checkboxes).forEach(cb => {
-                cb.checked = true;
-            });
-            updateApprovalCount();
-        }
-
-        function clearAllQuestions() {
-            const checkboxes = document.querySelectorAll('#review-questions-list input[type="checkbox"]');
-            Array.from(checkboxes).forEach(cb => {
-                cb.checked = false;
-            });
-            updateApprovalCount();
-        }
-
-        function goBackToSetup() {
-            document.getElementById('review-section').style.display = 'none';
-            document.getElementById('setup-section').style.display = 'block';
-            appState.currentScreen = 'setup';
-        }
-
-        async function approveAndStartInterview() {
-            // Collect approved questions
-            const checkboxes = document.querySelectorAll('#review-questions-list input[type="checkbox"]');
-            appState.approvedQuestions = [];
+            if (approveBtn) {
+                approveBtn.classList.remove('hidden');
+            }
             
-            Array.from(checkboxes).forEach((cb, index) => {
-                if (cb.checked) {
-                    appState.approvedQuestions.push(appState.questions[index]);
+            // Initialize SortableJS if it's not already
+            if (window.sortable) {
+                window.sortable.destroy();
+            }
+            window.sortable = new Sortable(questionsList, {
+                animation: 150,
+                ghostClass: 'opacity-50',
+                chosenClass: 'bg-blue-50',
+                dragClass: 'opacity-75',
+                forceFallback: true,
+                preventOnFilter: false,
+                filter: 'input, textarea, button, .no-drag',
+                onStart: function() {
+                    document.body.style.userSelect = 'none';
+                    document.body.classList.add('no-select');
+                },
+                onEnd: function (evt) {
+                    document.body.style.userSelect = '';
+                    document.body.classList.remove('no-select');
+                    const oldIndex = evt.oldDraggableIndex;
+                    const newIndex = evt.newDraggableIndex;
+
+                    if (oldIndex !== newIndex) {
+                        // Reorder the questions array
+                        const questionsToReorder = window.interviewQuestions || appState.questions || [];
+                        const [movedItem] = questionsToReorder.splice(oldIndex, 1);
+                        questionsToReorder.splice(newIndex, 0, movedItem);
+                        
+                        // Update both storage locations
+                        window.interviewQuestions = questionsToReorder;
+                        appState.questions = questionsToReorder;
+                        
+                        // Re-render to fix indices and display
+                        displayQuestionsForReview(questionsToReorder);
+                    }
                 }
             });
             
-            if (appState.approvedQuestions.length === 0) {
+            // Update approval count after rendering - ensure DOM is fully rendered
+            // Try immediate update first
+            updateApprovalCount();
+            
+            // Also schedule a delayed update as backup
+            setTimeout(() => {
+                updateApprovalCount();
+                console.log('✅ Questions rendered for review. Count updated with delay.');
+            }, 200);
+        }
+
+        // --- Edit Modal Logic ---
+        function openEditModal(index) {
+            const modal = document.getElementById('edit-modal');
+            const questionText = document.getElementById('edit-question-text');
+            const instructionInput = document.getElementById('edit-instruction');
+            
+            window.currentEditIndex = index;
+            questionText.textContent = window.interviewQuestions[index];
+            instructionInput.value = '';
+            
+            modal.classList.remove('hidden');
+            instructionInput.focus();
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        async function submitEditedQuestion() {
+            const instruction = document.getElementById('edit-instruction').value;
+            if (!instruction.trim()) {
+                alert('Please provide an instruction to edit the question.');
+                return;
+            }
+
+            const questionsArray = window.interviewQuestions || appState.questions || [];
+            const originalQuestion = questionsArray[window.currentEditIndex];
+            const jobDescription = document.getElementById('job-description').value || '';
+            const jobRole = document.getElementById('job-role-input').value || '';
+
+            if (!originalQuestion) {
+                alert('Error: Could not find the original question to edit.');
+                return;
+            }
+
+            const submitBtn = document.getElementById('submit-edit-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '⏳ Editing...';
+
+            try {
+                console.log('Editing question:', {
+                    original_question: originalQuestion,
+                    edit_instruction: instruction,
+                    job_description: jobDescription,
+                    job_role: jobRole,
+                    index: window.currentEditIndex
+                });
+
+                const response = await fetch(`${API_BASE}/questions/edit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        original_question: originalQuestion,
+                        edit_instruction: instruction,
+                        job_description: jobDescription,
+                        job_role: jobRole
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    try {
+                        const error = JSON.parse(errorText);
+                        throw new Error(error.detail || 'Failed to edit question.');
+                    } catch {
+                        throw new Error(`HTTP Error ${response.status}: ${errorText}`);
+                    }
+                }
+
+                const result = await response.json();
+                console.log('Edit result:', result);
+                
+                if (!result.edited_question) {
+                    throw new Error('No edited question returned from server.');
+                }
+                
+                // Update the question in the array
+                questionsArray[window.currentEditIndex] = result.edited_question;
+                window.interviewQuestions = questionsArray;
+                if (appState.questions) {
+                    appState.questions = questionsArray;
+                }
+                
+                // Re-render the questions
+                displayQuestionsForReview(questionsArray);
+                closeEditModal();
+                
+                // Show success message
+                const successMsg = document.createElement('div');
+                successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white p-3 rounded-lg shadow-lg z-50';
+                successMsg.textContent = 'Question updated successfully!';
+                document.body.appendChild(successMsg);
+                setTimeout(() => successMsg.remove(), 3000);
+
+            } catch (error) {
+                console.error('Error editing question:', error);
+                alert(`Error editing question: ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        }
+        // ----------------------
+
+        // Update approval count
+        function updateApprovalCount() {
+            const checkboxes = document.querySelectorAll('#review-questions-list input[type="checkbox"]');
+            const checkedCount = document.querySelectorAll('#review-questions-list input[type="checkbox"]:checked').length;
+            const totalCount = checkboxes.length;
+            
+            console.log('🔍 Debugging updateApprovalCount:');
+            console.log('   - Checkboxes found:', checkboxes.length);
+            console.log('   - Checked count:', checkedCount);
+            console.log('   - Review questions list element:', document.getElementById('review-questions-list'));
+            console.log('   - Questions in appState:', appState.questions?.length || 0);
+            console.log('   - Questions in window.interviewQuestions:', window.interviewQuestions?.length || 0);
+            
+            // Update the green counter at the top with class selector
+            const topCountElement = document.querySelector('.approval-count');
+            if (topCountElement) {
+                topCountElement.textContent = `${checkedCount} of ${totalCount} questions approved`;
+            }
+
+            // Update the bottom status with ID selector
+            const bottomCountElement = document.getElementById('approval-count');
+            if (bottomCountElement) {
+                bottomCountElement.textContent = `${checkedCount} of ${totalCount} questions approved`;
+            }
+
+            // Enable/disable the approve button based on selection
+            const approveBtn = document.getElementById('approve-btn');
+            if (approveBtn) {
+                if (checkedCount > 0) {
+                    approveBtn.disabled = false;
+                    approveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    approveBtn.style.opacity = '1';
+                } else {
+                    approveBtn.disabled = true;
+                    approveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    approveBtn.style.opacity = '0.5';
+                }
+            }
+        }
+
+        // Select all questions
+        function selectAllQuestions() {
+            console.log('Selecting all questions');
+            const checkboxes = document.querySelectorAll('#review-questions-list input[type="checkbox"]');
+            console.log('Found checkboxes:', checkboxes.length);
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateApprovalCount();
+        }
+
+        // Clear all question selections
+        function clearAllQuestions() {
+            console.log('Clearing all questions');
+            const checkboxes = document.querySelectorAll('#review-questions-list input[type="checkbox"]');
+            console.log('Found checkboxes:', checkboxes.length);
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateApprovalCount();
+        }
+
+        // Go back to setup screen
+        function goBackToSetup() {
+            console.log('Going back to setup screen');
+            const reviewSection = document.getElementById('review-section');
+            const setupSection = document.getElementById('setup-section');
+            
+            if (reviewSection) {
+                reviewSection.style.display = 'none';
+                reviewSection.classList.add('hidden');
+            }
+            
+            if (setupSection) {
+                setupSection.style.display = 'block';
+                setupSection.classList.remove('hidden');
+            }
+            
+            // Update app state
+            appState.currentScreen = 'setup';
+            
+            console.log('Switched to setup screen');
+        }
+
+        // Approve questions and start interview
+        async function approveAndStartInterview() {
+            console.log('Approve and start interview clicked');
+            const checkedBoxes = document.querySelectorAll('#review-questions-list input[type="checkbox"]:checked');
+            console.log('Found checked boxes:', checkedBoxes.length);
+            
+            if (checkedBoxes.length === 0) {
+                alert('Please select at least one question to proceed with the interview.');
+                return;
+            }
+
+            // Get the current ordered list of questions
+            const questionsArray = window.interviewQuestions || appState.questions || [];
+            
+            // Get selected questions in their current display order (not using dataset.index)
+            const selectedQuestions = [];
+            const listItems = document.querySelectorAll('#review-questions-list li');
+            
+            listItems.forEach((li, displayIndex) => {
+                const checkbox = li.querySelector('input[type="checkbox"]');
+                if (checkbox && checkbox.checked) {
+                    // Use the display index to get the question from the current ordered array
+                    if (questionsArray[displayIndex]) {
+                        selectedQuestions.push(questionsArray[displayIndex]);
+                    }
+                }
+            });
+
+            console.log('Selected questions:', selectedQuestions);
+
+            if (selectedQuestions.length === 0) {
+                alert('No valid questions selected. Please try again.');
+                return;
+            }
+
+            // Update the questions arrays with only the selected and correctly ordered questions
+            window.interviewQuestions = selectedQuestions;
+            appState.questions = selectedQuestions;
+            appState.approvedQuestions = selectedQuestions; // Ensure approvedQuestions is also set
+
+            console.log('Starting interview with selected questions:', selectedQuestions);
+
+            // Start the interview
+            await startInterview();
+        }
+
+        // Start interview
+        async function startInterview() {
+            // Use the already selected and validated questions from approveAndStartInterview
+            if (!appState.approvedQuestions || appState.approvedQuestions.length === 0) {
                 alert('Please select at least one question');
                 return;
             }
@@ -1092,6 +1623,9 @@
                     questions: appState.approvedQuestions,
                 };
 
+                console.log('Sending interview start payload:', payload);
+                console.log('API endpoint:', `${API_BASE}/interview/start`);
+
                 const response = await fetch(`${API_BASE}/interview/start`, {
                     method: 'POST',
                     headers: {
@@ -1100,11 +1634,26 @@
                     body: JSON.stringify(payload),
                 });
 
-                const result = await response.json();
-
                 if (!response.ok) {
-                    throw new Error(result.detail || 'Failed to start interview');
+                    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                    try {
+                        const result = await response.json();
+                        if (result.detail) {
+                            if (Array.isArray(result.detail)) {
+                                // Validation errors from FastAPI
+                                errorMessage = result.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+                            } else {
+                                errorMessage = result.detail;
+                            }
+                        }
+                    } catch (e) {
+                        // If we can't parse JSON, use the status text
+                        console.error('Could not parse error response:', e);
+                    }
+                    throw new Error(errorMessage);
                 }
+
+                const result = await response.json();
 
                 appState.sessionId = result.session_id;
                 if (Array.isArray(result.questions) && result.questions.length > 0) {
@@ -1290,9 +1839,16 @@
 
         // Recording Functions
         async function startRecording() {
+            // Re-check recording support if it's not available
             if (!appState.recorderSupported) {
-                showRecordingAlert('Live recording is not supported on this device. Please use the upload option below.', 'warning');
-                return;
+                console.log('Recording support not available, re-checking...');
+                updateRecordingSupportUI();
+                
+                // If still not supported after re-check, show error
+                if (!appState.recorderSupported) {
+                    showRecordingAlert('Live recording is not supported on this device. Please use the upload option below.', 'warning');
+                    return;
+                }
             }
 
             if (!appState.micPermission) {
@@ -1306,11 +1862,31 @@
             try {
                 stopQuestionAudio();
                 hideRecordingAlert();
+                
+                // Reset recording state completely
                 appState.autoStopReason = null;
                 appState.pendingResponse = null;
                 appState.silenceStart = null;
                 appState.noiseStart = null;
+                appState.speakingDetected = false;
+                appState.speakingStartTime = null;
                 appState.recordedBlob = null;
+                appState.audioChunks = [];
+                appState.isRecording = false;
+                
+                // Clear any existing MediaRecorder
+                if (appState.mediaRecorder) {
+                    try {
+                        if (appState.mediaRecorder.state !== 'inactive') {
+                            appState.mediaRecorder.stop();
+                        }
+                    } catch (e) {
+                        console.log('Error stopping existing MediaRecorder:', e);
+                    }
+                    appState.mediaRecorder = null;
+                }
+                
+                console.log('Starting recording - state reset complete');
                 const postActions = document.getElementById('post-response-actions');
                 if (postActions) {
                     postActions.classList.add('hidden');
@@ -1336,15 +1912,20 @@
                 const stream = appState.micStream || await navigator.mediaDevices.getUserMedia({ audio: true });
                 appState.micStream = stream;
                 
+                console.log('Stream active tracks:', stream.getAudioTracks().length);
+                console.log('Stream state:', stream.getAudioTracks()[0]?.readyState);
+                
                 const recorderOptions = {};
                 if (appState.recordingMimeType) {
                     recorderOptions.mimeType = appState.recordingMimeType;
                 }
 
+                console.log('Creating MediaRecorder with options:', recorderOptions);
                 try {
                     appState.mediaRecorder = Object.keys(recorderOptions).length > 0
                         ? new MediaRecorder(stream, recorderOptions)
                         : new MediaRecorder(stream);
+                    console.log('MediaRecorder created successfully, state:', appState.mediaRecorder.state);
                 } catch (recorderError) {
                     if (recorderOptions.mimeType) {
                         console.warn('Recorder init failed for preferred mime type, retrying without it.', recorderError);
@@ -1434,18 +2015,18 @@
 
                 if (auto) {
                     let message = '';
-                    let tone = 'warning';
+                    let tone = 'info';
 
                     switch (appState.autoStopReason) {
                         case 'silence':
-                            message = 'Recording stopped automatically because no speech was detected. Please speak clearly and try again.';
+                            message = '🔇 Recording stopped automatically after 5 seconds of silence. Processing your response...';
                             break;
                         case 'noise':
-                            message = 'Recording stopped automatically due to excessive background noise. Try moving to a quieter area or using a headset.';
+                            message = '📢 Recording stopped automatically after 5 seconds of noise. Processing your response...';
                             break;
                         case 'skip':
                             message = 'Recording cancelled for this question.';
-                            tone = 'info';
+                            tone = 'warning';
                             break;
                         default:
                             message = '';
@@ -1462,18 +2043,25 @@
             if (!appState.recordedBlob) return;
             
             try {
-                if (appState.autoStopReason) {
-                    if (appState.autoStopReason !== 'skip') {
-                        appState.recordedBlob = null;
-                    }
+                // If recording was skipped, don't process the audio
+                if (appState.autoStopReason === 'skip') {
                     appState.autoStopReason = null;
                     return;
                 }
+                
+                // Reset auto-stop reason but continue processing the audio
+                appState.autoStopReason = null;
 
                 const formData = new FormData();
                 const extension = appState.recordingExtension || mimeTypeToExtension(appState.recordedBlob.type);
                 const safeExtension = extension || 'webm';
                 formData.append('audio', appState.recordedBlob, `recording.${safeExtension}`);
+                
+                // Include session info to store transcript persistently
+                if (appState.sessionId) {
+                    formData.append('session_id', appState.sessionId);
+                    formData.append('question_index', appState.currentQuestionIndex);
+                }
                 
                 const response = await fetch(`${API_BASE}/transcribe`, {
                     method: 'POST',
@@ -1496,7 +2084,9 @@
                     appState.pendingResponse = {
                         question: appState.approvedQuestions[appState.currentQuestionIndex],
                         transcription,
-                        timestamp: new Date().toISOString()
+                        timestamp: new Date().toISOString(),
+                        recordedBlob: appState.recordedBlob,  // Preserve the recorded audio blob
+                        transcript_id: result.transcript_id  // Store the transcript ID from server
                     };
                     
                     const postActions = document.getElementById('post-response-actions');
@@ -1538,6 +2128,12 @@
                 const formData = new FormData();
                 formData.append('audio', file);
                 
+                // Include session info to store transcript persistently
+                if (appState.sessionId) {
+                    formData.append('session_id', appState.sessionId);
+                    formData.append('question_index', appState.currentQuestionIndex);
+                }
+                
                 const response = await fetch(`${API_BASE}/transcribe`, {
                     method: 'POST',
                     body: formData
@@ -1560,7 +2156,9 @@
                         question: appState.approvedQuestions[appState.currentQuestionIndex],
                         transcription,
                         timestamp: new Date().toISOString(),
-                        uploadedFileName: file.name
+                        uploadedFileName: file.name,
+                        recordedBlob: file,  // Store the uploaded file for server submission
+                        transcript_id: result.transcript_id  // Store the transcript ID from server
                     };
                     
                     const postActions = document.getElementById('post-response-actions');
@@ -1591,14 +2189,22 @@
             }
         }
 
-        function continueToNextQuestion() {
+        async function continueToNextQuestion() {
             if (!appState.pendingResponse) {
                 showRecordingAlert('Please record or upload a response before continuing.', 'warning');
                 return;
             }
 
-            appState.responses.push(appState.pendingResponse);
-            appState.pendingResponse = null;
+            // Submit response to server
+            try {
+                await submitResponseToServer(appState.pendingResponse);
+                appState.responses.push(appState.pendingResponse);
+                appState.pendingResponse = null;
+            } catch (error) {
+                console.error('Failed to submit response:', error);
+                showRecordingAlert(`Failed to submit response: ${error.message}`, 'error');
+                return;
+            }
 
             const postActions = document.getElementById('post-response-actions');
             if (postActions) {
@@ -1649,7 +2255,7 @@
             document.getElementById('transcription-display').style.display = 'none';
         }
 
-        function skipQuestion() {
+        async function skipQuestion() {
             if (appState.isRecording) {
                 appState.autoStopReason = 'skip';
                 stopRecording(true);
@@ -1679,13 +2285,22 @@
             document.getElementById('transcription-text').textContent = '';
             document.getElementById('transcription-display').style.display = 'none';
 
-            // Save empty response
-            appState.responses.push({
+            // Save empty response and submit to server
+            const skipResponse = {
                 question: appState.approvedQuestions[appState.currentQuestionIndex],
                 transcription: '(Question skipped)',
                 timestamp: new Date().toISOString(),
                 skipped: true
-            });
+            };
+            
+            try {
+                await submitSkipToServer();
+                appState.responses.push(skipResponse);
+            } catch (error) {
+                console.error('Failed to submit skip:', error);
+                showRecordingAlert(`Failed to submit skip: ${error.message}`, 'error');
+                return;
+            }
             
             // Move to next question
             appState.currentQuestionIndex++;
@@ -1699,7 +2314,8 @@
             document.getElementById('completion-section').style.display = 'block';
             
             appState.currentScreen = 'completed';
-            displayInterviewResults();
+            // Add a small delay to ensure server has updated the interview status
+            setTimeout(() => displayInterviewResults(), 500);
             
             // Stop any ongoing audio
             stopQuestionAudio(false);
@@ -1711,113 +2327,228 @@
             }
         }
 
-        function displayInterviewResults() {
-            const resultsContainer = document.getElementById('interview-results');
-            resultsContainer.innerHTML = '';
+        // Helper function to submit response to server
+        async function submitResponseToServer(responseData) {
+            if (!appState.sessionId) {
+                throw new Error('No active session');
+            }
             
-            appState.responses.forEach((response, index) => {
-                const responseDiv = document.createElement('div');
-                responseDiv.className = 'bg-gray-50 p-4 rounded-lg border border-gray-200';
-                responseDiv.innerHTML = `
-                    <div class="font-semibold text-gray-900 mb-2">Question ${index + 1}</div>
-                    <div class="text-gray-700 mb-3">${response.question}</div>
-                    <div class="bg-white p-3 rounded border-l-4 border-blue-500">
-                        <div class="text-sm text-gray-600 mb-1">Your Response:</div>
-                        <div class="text-gray-900">${response.transcription}</div>
+            const formData = new FormData();
+            formData.append('session_id', appState.sessionId);
+            formData.append('question_index', appState.currentQuestionIndex);
+            
+            // Include transcript_id if available (transcript already stored)
+            if (responseData.transcript_id) {
+                formData.append('transcript_id', responseData.transcript_id);
+            }
+            
+            const response = await fetch(`${API_BASE}/interview/submit`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Server responded with ${response.status}: ${errorText}`);
+            }
+            
+            return await response.json();
+        }
+        
+        // Helper function to submit skip to server
+        async function submitSkipToServer() {
+            if (!appState.sessionId) {
+                throw new Error('No active session');
+            }
+            
+            const formData = new FormData();
+            formData.append('session_id', appState.sessionId);
+            formData.append('question_index', appState.currentQuestionIndex);
+            // Note: no transcript_id means it will be handled as a skip
+            
+            const response = await fetch(`${API_BASE}/interview/submit`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Server responded with ${response.status}: ${errorText}`);
+            }
+            
+            return await response.json();
+        }
+
+        async function displayInterviewResults(retryCount = 0) {
+            const resultsContainer = document.getElementById('interview-results');
+            resultsContainer.innerHTML = '<div class="flex justify-center items-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><span class="ml-3 text-gray-600">Analyzing responses and calculating scores...</span></div>';
+            
+            try {
+                // Fetch detailed results with AI scoring from the backend
+                const response = await fetch(`${API_BASE}/interview/${appState.sessionId}/results`);
+                
+                if (!response.ok) {
+                    // Try to get detailed error message from server
+                    let errorDetail = '';
+                    try {
+                        const result = await response.json();
+                        errorDetail = result.detail || '';
+                    } catch (e) {
+                        errorDetail = response.statusText;
+                    }
+                    
+                    // If interview not yet completed and we haven't retried too many times
+                    if (response.status === 400 && retryCount < 3) {
+                        console.log(`Interview not ready yet (${errorDetail}), retrying in ${(retryCount + 1) * 1000}ms...`);
+                        setTimeout(() => displayInterviewResults(retryCount + 1), (retryCount + 1) * 1000);
+                        return;
+                    }
+                    throw new Error(`Failed to fetch interview results: ${response.status} - ${errorDetail}`);
+                }
+                
+                const results = await response.json();
+                resultsContainer.innerHTML = '';
+                
+                // Display overall score summary
+                const summaryDiv = document.createElement('div');
+                summaryDiv.className = 'bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200 mb-6';
+                summaryDiv.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-900">Interview Summary</h3>
+                        <div class="text-right">
+                            <div class="text-3xl font-bold text-blue-600">${results.average_score.toFixed(1)}/10</div>
+                            <div class="text-sm text-gray-600">Overall Score</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                        <div class="bg-white p-3 rounded-lg">
+                            <div class="text-2xl font-semibold text-gray-900">${results.total_questions}</div>
+                            <div class="text-sm text-gray-600">Questions Asked</div>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg">
+                            <div class="text-2xl font-semibold text-gray-900">${results.completed_responses}</div>
+                            <div class="text-sm text-gray-600">Responses Given</div>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg">
+                            <div class="text-2xl font-semibold text-gray-900">${Math.round((results.completed_responses / results.total_questions) * 100)}%</div>
+                            <div class="text-sm text-gray-600">Completion Rate</div>
+                        </div>
                     </div>
                 `;
-                resultsContainer.appendChild(responseDiv);
-            });
+                resultsContainer.appendChild(summaryDiv);
+                
+                // Display individual question results with AI scoring
+                results.responses.forEach((response, index) => {
+                    const scoreColor = response.score >= 8 ? 'green' : response.score >= 6 ? 'yellow' : response.score >= 4 ? 'orange' : 'red';
+                    const scoreColorClass = response.score >= 8 ? 'text-green-600 bg-green-50 border-green-200' : 
+                                          response.score >= 6 ? 'text-yellow-600 bg-yellow-50 border-yellow-200' : 
+                                          response.score >= 4 ? 'text-orange-600 bg-orange-50 border-orange-200' : 
+                                          'text-red-600 bg-red-50 border-red-200';
+                    
+                    const responseDiv = document.createElement('div');
+                    responseDiv.className = 'bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow';
+                    responseDiv.innerHTML = `
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-lg text-gray-900 mb-2">Question ${index + 1}</h4>
+                                <p class="text-gray-700 mb-4">${response.question}</p>
+                            </div>
+                            <div class="ml-4 text-center">
+                                <div class="text-2xl font-bold ${scoreColorClass} px-3 py-1 rounded-lg border">${response.score}/10</div>
+                                <div class="text-xs text-gray-500 mt-1">AI Score</div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500">
+                                <div class="text-sm font-medium text-gray-600 mb-2">Your Response:</div>
+                                <p class="text-gray-900">${response.transcript}</p>
+                            </div>
+                            
+                            <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
+                                <div class="text-sm font-medium text-blue-800 mb-2">AI Feedback:</div>
+                                <p class="text-blue-900">${response.feedback}</p>
+                            </div>
+                            
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
+                                    <div class="text-sm font-medium text-green-800 mb-2">✅ Strengths:</div>
+                                    <p class="text-green-900">${response.strengths}</p>
+                                </div>
+                                
+                                <div class="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-400">
+                                    <div class="text-sm font-medium text-orange-800 mb-2">🎯 Areas for Improvement:</div>
+                                    <p class="text-orange-900">${response.areas_for_improvement}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(responseDiv);
+                });
+                
+            } catch (error) {
+                console.error('Error fetching detailed results:', error);
+                resultsContainer.innerHTML = '';
+                
+                // Fallback to basic display if detailed results fail
+                appState.responses.forEach((response, index) => {
+                    const responseDiv = document.createElement('div');
+                    responseDiv.className = 'bg-gray-50 p-4 rounded-lg border border-gray-200';
+                    responseDiv.innerHTML = `
+                        <div class="font-semibold text-gray-900 mb-2">Question ${index + 1}</div>
+                        <div class="text-gray-700 mb-3">${response.question}</div>
+                        <div class="bg-white p-3 rounded border-l-4 border-blue-500">
+                            <div class="text-sm text-gray-600 mb-1">Your Response:</div>
+                            <div class="text-gray-900">${response.transcription}</div>
+                        </div>
+                        <div class="mt-3 text-sm text-orange-600">
+                            ⚠️ Detailed AI scoring unavailable. Please try again or check server connection.
+                        </div>
+                    `;
+                    resultsContainer.appendChild(responseDiv);
+                });
+            }
         }
 
         function startNewInterview() {
-            const existingAudioContext = appState.audioContext;
-            const existingMicStream = appState.micStream;
-            const existingMicLevelUpdate = appState.micLevelUpdate;
-            const existingStopMicMonitor = appState.stopMicMonitor;
-            // Reset app state
-            appState = {
-                currentScreen: 'setup',
-                micPermission: appState.micPermission, // Keep mic permission
-                isRecording: false,
-                mediaRecorder: null,
-                audioChunks: [],
-                recordedBlob: null,
-                currentQuestionIndex: 0,
-                questions: [],
-                approvedQuestions: [],
-                sessionId: null,
-                responses: [],
-                jobDescription: '',
-                jobRole: '',
-                candidateName: '',
-                numQuestions: 5,
-                audioContext: existingAudioContext, // Keep audio context
-                micStream: existingMicStream, // Keep mic stream
-                silenceDetection: null,
-                questionAudio: null,
-                isPlayingQuestion: false,
-                questionSource: 'ollama',
-                usedFallback: false,
-                fallbackReason: '',
-                silenceStart: null,
-                noiseStart: null,
-                pendingResponse: null,
-                autoStopReason: null,
-                micLevelUpdate: existingMicLevelUpdate,
-                stopMicMonitor: existingStopMicMonitor
-            };
-            stopQuestionAudio();
-            hideRecordingAlert();
+            console.log("Starting new interview: stopping media tracks and resetting state.");
+
+            // Stop any existing media streams to release the microphone
+            if (appState.micStream) {
+                appState.micStream.getTracks().forEach(track => track.stop());
+                console.log("Microphone stream stopped.");
+            }
+
+            // Close the audio context to release audio processing resources
+            if (appState.audioContext && appState.audioContext.state !== 'closed') {
+                appState.audioContext.close();
+                console.log("AudioContext closed.");
+            }
             
-            // Show setup section, hide others
-            document.getElementById('setup-section').style.display = 'block';
-            document.getElementById('review-section').style.display = 'none';
-            document.getElementById('interview-section').style.display = 'none';
-            document.getElementById('completion-section').style.display = 'none';
-            
-            // Reset forms
-            document.getElementById('generated-questions').style.display = 'none';
-            document.getElementById('generate-btn').disabled = false;
-            document.getElementById('job-description').value = '';
-            document.getElementById('job-role-input').value = '';
-            const candidateInput = document.getElementById('candidate-name');
-            if (candidateInput) {
-                candidateInput.value = '';
-            }
-            document.getElementById('transcription-text').textContent = '';
-            document.getElementById('transcription-display').style.display = 'none';
-            const postActions = document.getElementById('post-response-actions');
-            if (postActions) {
-                postActions.classList.add('hidden');
-            }
-            const audioUpload = document.getElementById('audio-upload');
-            if (audioUpload) {
-                audioUpload.value = '';
-            }
+            // Reloading the page is the most robust way to ensure a completely clean state
+            // for all browser media APIs and to avoid complex state management bugs.
+            window.location.reload();
         }
 
         function downloadResults() {
-            const results = {
+            const resultsJSON = JSON.stringify({
                 sessionId: appState.sessionId,
                 timestamp: new Date().toISOString(),
                 questions: appState.approvedQuestions,
                 responses: appState.responses
-            };
-            
-            const dataStr = JSON.stringify(results, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `interview_results_${appState.sessionId}.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
+            }, null, 2);
+            const blob = new Blob([resultsJSON], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `interview_results_${appState.sessionId}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </body>
+
 </html>
