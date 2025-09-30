@@ -3,7 +3,9 @@
 # HR Interview Agent - Client-Server Startup Script
 # This script starts the FastAPI server and opens the web client
 
-set -e  # Exit on any error
+# --- Configuration ---
+set -e # Exit immediately if a command exits with a non-zero status.
+set -o pipefail # The return value of a pipeline is the status of the last command to exit with a non-zero status.
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -12,486 +14,317 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Configuration
+# Ports and Paths
 SERVER_PORT=8001
-SERVER_BIND_HOST="0.0.0.0"
-LOCAL_HEALTH_HOST="127.0.0.1"
-PUBLIC_HOST=""
+HTTPS_API_PORT=8002
 CLIENT_HTTP_PORT=8080
 CLIENT_HTTPS_PORT=8443
-CLIENT_HTTP_PID=""
-CLIENT_HTTPS_PID=""
-HTTPS_API_PID=""
-CLIENT_WEB_PATH="/client_server/client/index.html"
-CLIENT_HTTPS_WEB_PATH="/client_server/client/index.html"
-HTTPS_API_PORT=8002
+SERVER_BIND_HOST="0.0.0.0"
 
-get_local_ip() {
-    if command -v ipconfig &> /dev/null; then
-        ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null
-    elif command -v hostname &> /dev/null; then
-        hostname -I 2>/dev/null | awk '{print $1}'
-    fi
-}
-
-detect_public_host() {
-    if [ -n "$PUBLIC_HOST" ]; then
-        return
-    fi
-
-    local ip_candidate
-    ip_candidate=$(get_local_ip)
-
-    if [ -n "$ip_candidate" ]; then
-        PUBLIC_HOST="$ip_candidate"
-    else
-        PUBLIC_HOST="$LOCAL_HEALTH_HOST"
-    fi
-}
-
+# Dynamically determine project paths
 CLIENT_SERVER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$CLIENT_SERVER_DIR")"
-SERVER_DIR="$CLIENT_SERVER_DIR/server"
-CLIENT_DIR="$CLIENT_SERVER_DIR/client"
+SERVER_DIR="$PROJECT_ROOT/client_server/server"
+CLIENT_DIR="$PROJECT_ROOT/client_server/client"
 CERT_PATH="$CLIENT_SERVER_DIR/cert.pem"
 KEY_PATH="$CLIENT_SERVER_DIR/key.pem"
 
-echo -e "${BLUE}🚀 HR Interview Agent - Client-Server Setup${NC}"
-echo "=================================================="
+# PID management
+PIDS=()
 
-# Function to check if port is in use
-check_port() {
-    local port=$1
-    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
-        return 0  # Port is in use
+# --- Functions ---
+
+# Gracefully clean up all background processes on exit
+cleanup_on_exit() {
+    echo -e "\n${YELLOW}Shutting down servers...${NC}"
+    for pid in "${PIDS[@]}"; do
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "   Stopping process with PID $pid..."
+            kill "$pid" 2>/dev/null || kill -9 "$pid" 2>/dev/null
+        fi
+    done
+    echo -e "${GREEN}Shutdown complete.${NC}"
+    exit 0
+}
+trap cleanup_on_exit SIGINT SIGTERM
+
+# Get the primary local network IP address
+get_local_ip() {
+    # macOS
+    if command -v ipconfig &> /dev/null; then
+        ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "127.0.0.1"
+    # Linux
+    elif command -v hostname &> /dev/null; then
+        hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1"
     else
-        return 1  # Port is free
+        echo "127.0.0.1"
     fi
 }
 
-# Function to stop existing processes
-cleanup() {
-    echo -e "${YELLOW}🧹 Cleaning up existing processes...${NC}"
-    
-    # Kill processes on server port
-    if check_port $SERVER_PORT; then
-        echo "Stopping existing server on port $SERVER_PORT..."
-        lsof -ti:$SERVER_PORT | xargs kill -9 2>/dev/null || true
-        sleep 2
-    fi
-
-    if check_port $CLIENT_HTTP_PORT; then
-        echo "Stopping existing client web server on port $CLIENT_HTTP_PORT..."
-        lsof -ti:$CLIENT_HTTP_PORT | xargs kill -9 2>/dev/null || true
-        sleep 1
-    fi
-
-    if check_port $CLIENT_HTTPS_PORT; then
-        echo "Stopping existing HTTPS web server on port $CLIENT_HTTPS_PORT..."
-        lsof -ti:$CLIENT_HTTPS_PORT | xargs kill -9 2>/dev/null || true
-        sleep 1
-    fi
-
-    if check_port $HTTPS_API_PORT; then
-        echo "Stopping existing HTTPS API server on port $HTTPS_API_PORT..."
-        lsof -ti:$HTTPS_API_PORT | xargs kill -9 2>/dev/null || true
-        sleep 1
-    fi
-    
-    echo "Cleanup complete."
+# Check if a port is in use
+is_port_in_use() {
+    lsof -Pi :"$1" -sTCP:LISTEN -t >/dev/null 2>&1
 }
 
+# Stop any processes currently using the required ports
+stop_existing_processes() {
+    echo -e "${YELLOW}Checking for and stopping existing processes...${NC}"
+    local ports=("$SERVER_PORT" "$HTTPS_API_PORT" "$CLIENT_HTTP_PORT" "$CLIENT_HTTPS_PORT")
+    for port in "${ports[@]}"; do
+        if is_port_in_use "$port"; then
+            echo "   Stopping service on port $port..."
+            lsof -ti:"$port" | xargs kill -9 2>/dev/null || true
+            sleep 1
+        fi
+    done
+}
+
+# Generate a self-signed certificate if needed
 ensure_certificate() {
-    if [ -f "$CERT_PATH" ] && [ -f "$KEY_PATH" ]; then
+    local local_ip
+    local_ip=$(get_local_ip)
+
+    if ! command -v openssl &>/dev/null; then
+        echo -e "${YELLOW}OpenSSL not found. Skipping HTTPS servers.${NC}"
+        return 1
+    fi
+
+    # Always regenerate if cert doesn't exist
+    if [ ! -f "$CERT_PATH" ]; then
+        echo -e "${BLUE}No certificate found. Generating new one...${NC}"
+    # Regenerate weekly to catch IP changes
+    elif [ $(find "$CERT_PATH" -mtime +7 2>/dev/null | wc -l) -gt 0 ]; then
+        echo -e "${YELLOW}Certificate is over 7 days old. Regenerating...${NC}"
+    else
+        echo -e "${GREEN}Using existing certificate.${NC}"
         return 0
     fi
 
-    detect_public_host
-    local subject_cn
-    subject_cn=${PUBLIC_HOST:-127.0.0.1}
-
-    local openssl_bin
-    openssl_bin=$(command -v openssl || true)
-    if [ -z "$openssl_bin" ]; then
-        echo -e "${YELLOW}⚠️  TLS certificate not found and OpenSSL missing. HTTPS client will be skipped.${NC}"
-        return 1
-    fi
-
-    echo -e "${BLUE}🔐 Generating self-signed certificate for $subject_cn...${NC}"
-    local openssl_log="/tmp/hr_agent_cert_gen.log"
+    echo -e "${BLUE}Generating self-signed certificate for SANs: localhost, 127.0.0.1, $local_ip, *.local...${NC}"
+    
+    # Use a temporary directory for config and key generation
     local tmp_dir
-    tmp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t hr_agent_cert)
+    tmp_dir=$(mktemp -d)
 
-    if ! "$openssl_bin" req -x509 -newkey rsa:2048 -nodes -days 365 \
-        -keyout "$tmp_dir/key.pem" -out "$tmp_dir/cert.pem" \
-        -subj "/CN=$subject_cn" >"$openssl_log" 2>&1; then
-        echo -e "${YELLOW}⚠️  Failed to generate certificate. HTTPS client will be skipped.${NC}"
-        if [ -s "$openssl_log" ]; then
-            echo -e "${YELLOW}   ↳ OpenSSL output:${NC}"
-            sed 's/^/      /' "$openssl_log"
-        fi
-        rm -rf "$tmp_dir"
-        return 1
+    # Build a more comprehensive SAN list
+    local san_config="[alt_names]
+DNS.1 = localhost
+DNS.2 = *.local
+DNS.3 = $(hostname 2>/dev/null || echo localhost)
+IP.1 = 127.0.0.1"
+    
+    if [[ "$local_ip" != "127.0.0.1" ]]; then
+        san_config+="
+IP.2 = $local_ip"
     fi
+    
+    # Create OpenSSL config on the fly
+    cat > "$tmp_dir/cert.conf" << EOF
+[req]
+distinguished_name = dn
+prompt = no
+req_extensions = v3_req
 
-    # Copy files to the correct location
-    if ! cp "$tmp_dir/key.pem" "$KEY_PATH" 2>/dev/null; then
-        echo -e "${YELLOW}⚠️  Unable to write key to $KEY_PATH. HTTPS client will be skipped.${NC}"
-        rm -rf "$tmp_dir"
-        return 1
-    fi
+[dn]
+CN = localhost
+O = HR Interview Agent (Development)
+C = US
 
-    if ! cp "$tmp_dir/cert.pem" "$CERT_PATH" 2>/dev/null; then
-        echo -e "${YELLOW}⚠️  Unable to write certificate to $CERT_PATH. HTTPS client will be skipped.${NC}"
+[v3_req]
+subjectAltName = @alt_names
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+
+$san_config
+EOF
+
+    local openssl_log="$tmp_dir/openssl.log"
+    if ! openssl req -x509 -newkey rsa:2048 -sha256 -days 365 -nodes \
+        -keyout "$KEY_PATH" -out "$CERT_PATH" \
+        -config "$tmp_dir/cert.conf" >"$openssl_log" 2>&1; then
+        echo -e "${RED}Failed to generate certificate.${NC}"
+        echo -e "${YELLOW}   OpenSSL output:${NC}"
+        sed 's/^/      /' "$openssl_log"
         rm -rf "$tmp_dir"
         return 1
     fi
 
     rm -rf "$tmp_dir"
-    chmod 600 "$KEY_PATH" 2>/dev/null || true
-    chmod 644 "$CERT_PATH" 2>/dev/null || true
-
-    echo -e "${GREEN}✅ Created self-signed certificate at $CERT_PATH${NC}"
-    return 0
+    chmod 600 "$KEY_PATH"
+    echo -e "${GREEN}Certificate created successfully.${NC}"
 }
 
-# Function to check dependencies
+# Check and install Python dependencies
 check_dependencies() {
-    echo -e "${BLUE}🔍 Checking dependencies...${NC}"
-    
-    # Check Python
+    echo -e "${BLUE}Checking dependencies...${NC}"
     if ! command -v python3 &> /dev/null; then
-        echo -e "${RED}❌ Python 3 is required but not installed${NC}"
+        echo -e "${RED}Python 3 is required but not installed.${NC}"
         exit 1
     fi
     
-    # Check if in virtual environment or if packages are available
-    if ! python3 -c "import fastapi" 2>/dev/null; then
-        echo -e "${YELLOW}⚠️  FastAPI not found. Installing server dependencies...${NC}"
+    # Activate virtual environment if it exists
+    if [ -f "$PROJECT_ROOT/venv/bin/activate" ]; then
+        source "$PROJECT_ROOT/venv/bin/activate"
+    elif [ -f "$PROJECT_ROOT/.venv/bin/activate" ]; then
+        source "$PROJECT_ROOT/.venv/bin/activate"
+    fi
         
-        # Try to activate virtual environment if it exists
-        if [ -f "$PROJECT_ROOT/venv/bin/activate" ]; then
-            echo "Activating virtual environment..."
-            source "$PROJECT_ROOT/venv/bin/activate"
-        elif [ -f "$PROJECT_ROOT/.venv/bin/activate" ]; then
-            echo "Activating virtual environment..."
-            source "$PROJECT_ROOT/.venv/bin/activate"
-        fi
-        
-        # Install dependencies
+    if ! python3 -c "import fastapi, uvicorn" &>/dev/null; then
+        echo -e "${YELLOW}Required Python packages not found. Installing...${NC}"
         if [ -f "$SERVER_DIR/requirements.txt" ]; then
-            pip install -r "$SERVER_DIR/requirements.txt"
+            python3 -m pip install -r "$SERVER_DIR/requirements.txt"
         else
-            echo -e "${RED}❌ Server requirements.txt not found${NC}"
+            echo -e "${RED}Server requirements.txt not found.${NC}"
             exit 1
         fi
     fi
-    
-    echo -e "${GREEN}✅ Dependencies check complete${NC}"
+    echo -e "${GREEN}Dependencies are satisfied.${NC}"
 }
 
-# Function to start the server
-start_server() {
-    echo -e "${BLUE}🖥️  Starting FastAPI server...${NC}"
+# Wait for a service to become available
+wait_for_service() {
+    local url=$1
+    local service_name=$2
+    local curl_opts=$3
+    echo "   Waiting for $service_name to be ready..."
+    for i in {1..30}; do
+        if curl --fail --silent --show-error $curl_opts "$url" >/dev/null 2>&1; then
+            echo -e "${GREEN}$service_name is ready!${NC}"
+            return 0
+        fi
+        sleep 1
+    done
+    echo -e "${RED}$service_name failed to start after 30 seconds.${NC}"
+    return 1
+}
+
+# Start all servers
+start_servers() {
+    echo -e "${BLUE}Starting all services...${NC}"
     
-    # Activate virtual environment if available
-    if [ -f "$PROJECT_ROOT/venv/bin/activate" ]; then
-        source "$PROJECT_ROOT/venv/bin/activate"
-    elif [ -f "$PROJECT_ROOT/.venv/bin/activate" ]; then
-        source "$PROJECT_ROOT/.venv/bin/activate"
-    fi
-    
-    # Add project root to Python path so server can import hr_agent modules
+    # Add project root to Python path for module imports
     export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
     
+    # 1. Start HTTP API Server
+    echo "Starting HTTP API Server..."
     cd "$SERVER_DIR"
-    
-    # Start server in background
-    python3 main.py &
-    SERVER_PID=$!
-    
-    echo -e "${GREEN}✅ Server started with PID $SERVER_PID${NC}"
-    
-    # Wait for server to be ready
-    echo "Waiting for server to start..."
-    for i in {1..30}; do
-        if curl -s "http://$LOCAL_HEALTH_HOST:$SERVER_PORT/health" >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ Server is ready!${NC}"
-            break
-        fi
-        if [ $i -eq 30 ]; then
-            echo -e "${RED}❌ Server failed to start within 30 seconds${NC}"
-            kill $SERVER_PID 2>/dev/null || true
-            exit 1
-        fi
-        sleep 1
-    done
+    uvicorn main:app --host "$SERVER_BIND_HOST" --port "$SERVER_PORT" >/tmp/hr_agent_api_http.log 2>&1 &
+    PIDS+=($!)
+    wait_for_service "http://127.0.0.1:$SERVER_PORT/health" "HTTP API Server" || cleanup_on_exit
+
+    # 2. Start Static HTTP Client Server
+    echo "Starting Static HTTP Client Server..."
+    (cd "$PROJECT_ROOT" && python3 -m http.server "$CLIENT_HTTP_PORT" --bind "$SERVER_BIND_HOST" >/tmp/hr_agent_client_ui.log 2>&1) &
+    PIDS+=($!)
+    wait_for_service "http://127.0.0.1:$CLIENT_HTTP_PORT/client_server/client/" "Static HTTP Server" || cleanup_on_exit
+
+    # 3. Start HTTPS servers (if certificate is available)
+    if ensure_certificate; then
+        echo "Starting HTTPS API Server..."
+        cd "$SERVER_DIR"
+        uvicorn main:app --host "$SERVER_BIND_HOST" --port "$HTTPS_API_PORT" --ssl-keyfile "$KEY_PATH" --ssl-certfile "$CERT_PATH" >/tmp/hr_agent_api_https.log 2>&1 &
+        PIDS+=($!)
+        wait_for_service "https://127.0.0.1:$HTTPS_API_PORT/health" "HTTPS API Server" "-k" || cleanup_on_exit
+        
+        echo "Starting Static HTTPS Client Server..."
+        python3 "$CLIENT_SERVER_DIR/serve_https.py" --port "$CLIENT_HTTPS_PORT" --directory "$PROJECT_ROOT" --cert "$CERT_PATH" --key "$KEY_PATH" >/tmp/hr_agent_client_ui_https.log 2>&1 &
+        PIDS+=($!)
+        wait_for_service "https://127.0.0.1:$CLIENT_HTTPS_PORT/client_server/client/" "Static HTTPS Server" "-k" || cleanup_on_exit
+    fi
 }
 
-start_https_api_server() {
-    if ! ensure_certificate; then
-        echo -e "${YELLOW}⚠️  No certificate available. Skipping HTTPS API server.${NC}"
-        return
-    fi
-
-    echo -e "${BLUE}🔒 Starting HTTPS FastAPI server on port $HTTPS_API_PORT...${NC}"
-    
-    # Activate virtual environment if available
-    if [ -f "$PROJECT_ROOT/venv/bin/activate" ]; then
-        source "$PROJECT_ROOT/venv/bin/activate"
-    elif [ -f "$PROJECT_ROOT/.venv/bin/activate" ]; then
-        source "$PROJECT_ROOT/.venv/bin/activate"
-    fi
-    
-    export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
-    cd "$SERVER_DIR"
-    
-    # Start HTTPS server in background
-    uvicorn main:app --host 0.0.0.0 --port $HTTPS_API_PORT --ssl-keyfile "$KEY_PATH" --ssl-certfile "$CERT_PATH" >/tmp/hr_agent_api_https.log 2>&1 &
-    HTTPS_API_PID=$!
-    
-    echo -e "${GREEN}✅ HTTPS API server started with PID $HTTPS_API_PID${NC}"
-    
-    # Wait for HTTPS server to be ready
-    for i in {1..30}; do
-        if curl -k -s "https://$LOCAL_HEALTH_HOST:$HTTPS_API_PORT/health" >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ HTTPS API server is ready!${NC}"
-            return
-        fi
-        sleep 1
-    done
-    
-    echo -e "${YELLOW}⚠️  HTTPS API server may still be starting. Check /tmp/hr_agent_api_https.log if needed.${NC}"
-}
-
-start_client_static_server() {
-    echo -e "${BLUE}🌍 Starting static web client server on port $CLIENT_HTTP_PORT...${NC}"
-    python3 -m http.server $CLIENT_HTTP_PORT --bind 0.0.0.0 --directory "$PROJECT_ROOT" >/tmp/hr_agent_client_ui.log 2>&1 &
-    CLIENT_HTTP_PID=$!
-
-    for i in {1..15}; do
-        if curl -s "http://$LOCAL_HEALTH_HOST:$CLIENT_HTTP_PORT$CLIENT_WEB_PATH" >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ Client web server is ready!${NC}"
-            return
-        fi
-        sleep 1
-    done
-
-    echo -e "${YELLOW}⚠️  Client web server may still be starting. Check /tmp/hr_agent_client_ui.log if needed.${NC}"
-}
-
-start_client_https_server() {
-    if [ ! -f "$CLIENT_SERVER_DIR/serve_https.py" ]; then
-        echo -e "${YELLOW}⚠️  HTTPS helper script not found. Skipping HTTPS server.${NC}"
-        return
-    fi
-
-    if ! ensure_certificate; then
-        return
-    fi
-
-    echo -e "${BLUE}🔒 Starting HTTPS web client server on port $CLIENT_HTTPS_PORT...${NC}"
-    python3 "$CLIENT_SERVER_DIR/serve_https.py" \
-        --host 0.0.0.0 \
-        --port $CLIENT_HTTPS_PORT \
-        --directory "$PROJECT_ROOT" \
-        --cert "$CERT_PATH" \
-        --key "$KEY_PATH" \
-        >/tmp/hr_agent_client_ui_https.log 2>&1 &
-    CLIENT_HTTPS_PID=$!
-
-    for i in {1..20}; do
-        if curl -k -s "https://$LOCAL_HEALTH_HOST:$CLIENT_HTTPS_PORT$CLIENT_HTTPS_WEB_PATH" >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ HTTPS client web server is ready!${NC}"
-            return
-        fi
-        sleep 1
-    done
-
-    echo -e "${YELLOW}⚠️  HTTPS web server may still be starting. Check /tmp/hr_agent_client_ui_https.log if needed.${NC}"
-}
-
-# Function to display URLs and information
+# Display final information and URLs
 show_info() {
-    detect_public_host
-    echo ""
+    local local_ip
+    local_ip=$(get_local_ip)
+    local client_path="/client_server/client/index.html"
+    echo
     echo "=================================================="
-    echo -e "${GREEN}🎉 HR Interview Agent Client-Server Started!${NC}"
+    echo -e "${GREEN}All services are running!${NC}"
     echo "=================================================="
-    echo ""
-    echo -e "${BLUE}📱 Web Client:${NC}"
-    echo "   Local:    http://$LOCAL_HEALTH_HOST:$CLIENT_HTTP_PORT$CLIENT_WEB_PATH"
-    echo "   Network:  http://$PUBLIC_HOST:$CLIENT_HTTP_PORT$CLIENT_WEB_PATH"
-    if [ -n "$CLIENT_HTTPS_PID" ]; then
-        echo "   Local TLS: https://$LOCAL_HEALTH_HOST:$CLIENT_HTTPS_PORT$CLIENT_HTTPS_WEB_PATH"
-        echo "   Network TLS: https://$PUBLIC_HOST:$CLIENT_HTTPS_PORT$CLIENT_HTTPS_WEB_PATH"
-        echo "   Note: Self-signed certificate. Use 'Show Details' → 'visit this website' in Safari to trust it."
-    else
-        echo "   HTTPS:    (not running)"
+    echo
+    echo -e "${BLUE}Web Client URLs:${NC}"
+    echo "   - Local:    http://127.0.0.1:$CLIENT_HTTP_PORT$client_path"
+    if [[ "$local_ip" != "127.0.0.1" ]]; then
+        echo "   - Network:  http://$local_ip:$CLIENT_HTTP_PORT$client_path"
     fi
-    echo "   Source:   $CLIENT_DIR/index.html"
-    echo ""
-    echo -e "${BLUE}🔧 API Server:${NC}"
-    echo "   Local:    http://$LOCAL_HEALTH_HOST:$SERVER_PORT"
-    echo "   Network:  http://$PUBLIC_HOST:$SERVER_PORT"
-    echo "   Docs:     http://$LOCAL_HEALTH_HOST:$SERVER_PORT/docs"
-    if [ -n "$HTTPS_API_PID" ]; then
-        echo "   Local TLS: https://$LOCAL_HEALTH_HOST:$HTTPS_API_PORT"
-        echo "   Network TLS: https://$PUBLIC_HOST:$HTTPS_API_PORT"
-        echo "   TLS Docs: https://$LOCAL_HEALTH_HOST:$HTTPS_API_PORT/docs"
+    if is_port_in_use "$CLIENT_HTTPS_PORT"; then
+        echo "   - Local TLS: https://127.0.0.1:$CLIENT_HTTPS_PORT$client_path"
+        if [[ "$local_ip" != "127.0.0.1" ]]; then
+            echo "   - Network TLS: https://$local_ip:$CLIENT_HTTPS_PORT$client_path"
+        fi
     fi
-    echo ""
-    echo -e "${YELLOW}🌐 Share the network URL with teammates on the same Wi-Fi/LAN.${NC}"
-    echo ""
-    echo -e "${BLUE}🐍 Python Client Usage:${NC}"
-    echo "   cd $CLIENT_DIR"
-    echo "   python3 hr_client.py"
-    echo ""
-    echo -e "${BLUE}📋 API Endpoints:${NC}"
-    echo "   POST /transcribe      - Speech to text"
-    echo "   POST /synthesize      - Text to speech"
-    echo "   POST /generate        - LLM generation"
-    echo "   POST /interview/start - Start interview"
-    echo "   POST /interview/submit - Submit response"
-    echo ""
-    echo -e "${YELLOW}💡 To stop the server: Press Ctrl+C or run 'kill $SERVER_PID'${NC}"
-    echo ""
+    
+    echo
+    echo -e "${BLUE}API Server URLs:${NC}"
+    echo "   - Docs:     http://127.0.0.1:$SERVER_PORT/docs"
+    if is_port_in_use "$HTTPS_API_PORT"; then
+        echo "   - Docs TLS: https://127.0.0.1:$HTTPS_API_PORT/docs"
+    fi
+    echo
+    echo -e "${YELLOW}For Network HTTPS Access:${NC}"
+    echo "   1. First visit: https://$local_ip:$HTTPS_API_PORT/health"
+    echo "   2. Accept the security warning (self-signed cert)"
+    echo "   3. Then open: https://$local_ip:$CLIENT_HTTPS_PORT$client_path"
+    echo "   4. Accept the security warning again"
+    echo
+    echo -e "${YELLOW}   Or use HTTP (no certificate needed):${NC}"
+    echo "   - http://$local_ip:$CLIENT_HTTP_PORT$client_path?api_host=$local_ip&api_port=$SERVER_PORT"
+    echo
+    echo -e "${YELLOW}Troubleshooting:${NC}"
+    echo "   - Check firewall allows ports $SERVER_PORT, $HTTPS_API_PORT, $CLIENT_HTTP_PORT, $CLIENT_HTTPS_PORT"
+    echo "   - Server logs: /tmp/hr_agent_*.log"
+    echo
 }
 
-# Function to open web client
-open_web_client() {
-    local web_client_path="http://$LOCAL_HEALTH_HOST:$CLIENT_HTTP_PORT$CLIENT_WEB_PATH"
-    
-    echo -e "${BLUE}🌐 Opening web client...${NC}"
-    
-    # Try to open in default browser
-    if command -v open &> /dev/null; then
-        # macOS
-        open "$web_client_path"
-    elif command -v xdg-open &> /dev/null; then
-        # Linux
-        xdg-open "$web_client_path"
-    elif command -v start &> /dev/null; then
-        # Windows
-        start "$web_client_path"
-    else
-        echo -e "${YELLOW}⚠️  Could not auto-open browser. Please manually open:${NC}"
-        echo "   $web_client_path"
-    fi
+# Open the web client in the default browser
+open_in_browser() {
+    local url=$1
+    echo -e "${BLUE}Opening '$url' in your browser...${NC}"
+    case "$(uname -s)" in
+        Linux*)  xdg-open "$url" 2>/dev/null ;;
+        Darwin*) open "$url" ;;
+        CYGWIN*|MINGW*|MSYS*) start "$url" ;;
+        *)       echo -e "${YELLOW}Could not detect OS to open browser. Please open the URL manually.${NC}" ;;
+    esac
 }
 
-# Function to handle cleanup on exit
-cleanup_on_exit() {
-    echo ""
-    echo -e "${YELLOW}🛑 Shutting down HR Interview Agent Client-Server...${NC}"
-    
-    if [ ! -z "$SERVER_PID" ]; then
-        echo "Stopping server (PID: $SERVER_PID)..."
-        kill $SERVER_PID 2>/dev/null || true
-        wait $SERVER_PID 2>/dev/null || true
-    fi
-
-    if [ ! -z "$CLIENT_HTTP_PID" ]; then
-        echo "Stopping client web server (PID: $CLIENT_HTTP_PID)..."
-        kill $CLIENT_HTTP_PID 2>/dev/null || true
-        wait $CLIENT_HTTP_PID 2>/dev/null || true
-    fi
-
-    if [ ! -z "$CLIENT_HTTPS_PID" ]; then
-        echo "Stopping HTTPS web server (PID: $CLIENT_HTTPS_PID)..."
-        kill $CLIENT_HTTPS_PID 2>/dev/null || true
-        wait $CLIENT_HTTPS_PID 2>/dev/null || true
-    fi
-
-    if [ ! -z "$HTTPS_API_PID" ]; then
-        echo "Stopping HTTPS API server (PID: $HTTPS_API_PID)..."
-        kill $HTTPS_API_PID 2>/dev/null || true
-        wait $HTTPS_API_PID 2>/dev/null || true
-    fi
-    
-    # Additional cleanup
-    if check_port $SERVER_PORT; then
-        lsof -ti:$SERVER_PORT | xargs kill -9 2>/dev/null || true
-    fi
-
-    if check_port $CLIENT_HTTP_PORT; then
-        lsof -ti:$CLIENT_HTTP_PORT | xargs kill -9 2>/dev/null || true
-    fi
-
-    if check_port $CLIENT_HTTPS_PORT; then
-        lsof -ti:$CLIENT_HTTPS_PORT | xargs kill -9 2>/dev/null || true
-    fi
-
-    if check_port $HTTPS_API_PORT; then
-        lsof -ti:$HTTPS_API_PORT | xargs kill -9 2>/dev/null || true
-    fi
-    
-    echo -e "${GREEN}✅ Shutdown complete${NC}"
-    exit 0
-}
-
-# Set up signal handlers
-trap cleanup_on_exit SIGINT SIGTERM
-
-# Main execution
+# --- Main Execution Logic ---
 main() {
-    # Handle command line arguments
+    # Handle simple commands first
     case "${1:-}" in
-        "stop")
-            cleanup
+        stop|clean)
+            stop_existing_processes
             exit 0
             ;;
-        "clean")
-            cleanup
+        help|-h|--help)
+            echo "Usage: $0 [start|stop|help]"
+            echo "  - start (default): Checks dependencies, cleans old processes, and starts all services."
+            echo "  - stop / clean:    Finds and stops all running services started by this script."
+            echo "  - help:            Shows this help message."
             exit 0
-            ;;
-        "help"|"-h"|"--help")
-            echo "Usage: $0 [start|stop|clean|help]"
-            echo ""
-            echo "Commands:"
-            echo "  start (default) - Start the client-server system"
-            echo "  stop            - Stop running services"
-            echo "  clean           - Clean up processes"
-            echo "  help            - Show this help message"
-            exit 0
-            ;;
-        "start"|"")
-            # Continue with start process
-            ;;
-        *)
-            echo -e "${RED}❌ Unknown command: $1${NC}"
-            echo "Use '$0 help' for usage information"
-            exit 1
             ;;
     esac
     
-    # Start process
-    cleanup
+    stop_existing_processes
     check_dependencies
-    detect_public_host
-    start_server
-    start_https_api_server
-    start_client_static_server
-    start_client_https_server
+    start_servers
     show_info
     
-    # Optionally open web client
-    read -p "Open web client in browser? (y/N): " -n 1 -r
+    # Prompt user to open browser
+    read -p "Open web client in browser? (y/N): " -n 1 -r REPLY
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        if [ -n "$CLIENT_HTTPS_PID" ]; then
-            open "https://$LOCAL_HEALTH_HOST:$CLIENT_HTTPS_PORT$CLIENT_HTTPS_WEB_PATH" 2>/dev/null || open_web_client
-        else
-            open_web_client
+        local url_to_open="http://127.0.0.1:$CLIENT_HTTP_PORT/client_server/client/index.html"
+        if is_port_in_use "$CLIENT_HTTPS_PORT"; then
+            url_to_open="https://127.0.0.1:$CLIENT_HTTPS_PORT/client_server/client/index.html"
         fi
+        open_in_browser "$url_to_open"
     fi
     
-    echo ""
-    echo -e "${GREEN}🔄 Server running... Press Ctrl+C to stop${NC}"
-    
-    # Keep script running and wait for server
-    wait $SERVER_PID
+    echo -e "${GREEN}Servers are running in the background. Press Ctrl+C to stop everything.${NC}"
+    wait
 }
 
-# Run main function
+# Run the main function with all provided script arguments
 main "$@"

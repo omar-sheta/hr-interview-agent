@@ -259,7 +259,7 @@
         </div>
 
         <!-- Interview In Progress Section -->
-        <div id="interview-section" class="hidden w-full max-w-4xl">
+        <div id="interview-section" class="hidden w-full max-w-4xl mx-auto">
             <!-- Mic troubleshooting banner -->
             <div id="mic-warning" class="mb-4 p-3 rounded-lg border border-yellow-300 bg-yellow-50" style="display: none;">
                 <div class="flex items-center justify-between gap-3">
@@ -452,35 +452,98 @@
         const currentHost = window.location.hostname;
         const currentProtocol = window.location.protocol;
         const isSecure = currentProtocol === 'https:';
-        
-        // Check if API_HOST is provided via URL parameters (useful for network testing)
+
+        // Allow overriding the API host/port via query parameters
         const urlParams = new URLSearchParams(window.location.search);
-        const customApiHost = urlParams.get('api_host');
+        const customApiHost = urlParams.get('api_host') || currentHost;
         const customApiPort = urlParams.get('api_port');
-        
-        // Determine the API host and port
-        let apiHost = currentHost;
-        let apiPort = isSecure ? '8002' : '8001';
-        
-        if (customApiHost) {
-            apiHost = customApiHost;
-            console.log('Using custom API host from URL parameter:', customApiHost);
+
+        // Determine which port to use (allow explicit override)
+        let apiPort = customApiPort || (isSecure ? '8002' : '8001');
+
+        // Build the primary API URL (match the current page protocol by default)
+        let API_BASE = `${currentProtocol}//${customApiHost}:${apiPort}`;
+
+        // Prepare HTTP fallback when browsing over HTTPS (unless user forced a port)
+        let FALLBACK_API_BASE = null;
+        if (isSecure && !customApiPort) {
+            FALLBACK_API_BASE = `http://${customApiHost}:8001`;
         }
-        
-        if (customApiPort) {
-            apiPort = customApiPort;
-            console.log('Using custom API port from URL parameter:', customApiPort);
-        }
-        
-        const API_BASE = `${currentProtocol}//${apiHost}:${apiPort}`;
-        
+
         console.log('API Configuration:');
-        console.log('  Current Host:', currentHost);
-        console.log('  API Host:', apiHost);
-        console.log('  API Port:', apiPort);
-        console.log('  Is Secure:', isSecure);
-        console.log('  Final API Base URL:', API_BASE);
-        console.log('  Tip: Add ?api_host=SERVER_IP to URL if server is on different machine');
+        console.log('  Protocol:', currentProtocol);
+        console.log('  Host:', customApiHost);
+        console.log('  Port:', apiPort);
+        console.log('  Primary API:', API_BASE);
+        if (FALLBACK_API_BASE) {
+            console.log('  Fallback API:', FALLBACK_API_BASE);
+        }
+
+        const getApiHostDisplay = () => {
+            try {
+                return new URL(API_BASE).host;
+            } catch {
+                return API_BASE;
+            }
+        };
+        
+        // Helper function to make API requests with automatic fallback
+        async function makeAPIRequest(endpoint, options = {}) {
+            const buildUrl = (base, path) => {
+                try {
+                    return new URL(path, base).toString();
+                } catch (err) {
+                    console.warn('Falling back to manual URL concatenation:', err);
+                    return `${base.replace(/\/+$/, '')}${path}`;
+                }
+            };
+
+            const urls = [];
+            if (API_BASE) {
+                urls.push(buildUrl(API_BASE, endpoint));
+            }
+            if (FALLBACK_API_BASE) {
+                urls.push(buildUrl(FALLBACK_API_BASE, endpoint));
+            }
+
+            for (let i = 0; i < urls.length; i++) {
+                const url = urls[i];
+                const isLastAttempt = i === urls.length - 1;
+
+                try {
+                    console.log(`Attempting API request to: ${url}`);
+                    const response = await fetch(url, {
+                        ...options,
+                        signal: AbortSignal.timeout(10000) // 10 second timeout
+                    });
+
+                    if (response.ok) {
+                        console.log(`✅ API request successful: ${url}`);
+
+                        const resolved = new URL(url);
+                        const newBase = resolved.origin;
+                        if (API_BASE !== newBase) {
+                            API_BASE = newBase;
+                            console.log(`Updated API_BASE to working URL: ${API_BASE}`);
+                        }
+
+                        // If the fallback succeeded, avoid retrying the failing primary on future requests
+                        if (i > 0) {
+                            FALLBACK_API_BASE = null;
+                        }
+
+                        return response;
+                    }
+
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                } catch (error) {
+                    console.warn(`❌ API request failed for ${url}:`, error.message);
+                    if (isLastAttempt) {
+                        throw error;
+                    }
+                }
+            }
+        }
         const MEDIA_RECORDER_PREFERENCES = [
             { type: 'audio/webm;codecs=opus', extension: 'webm' },
             { type: 'audio/webm', extension: 'webm' },
@@ -556,7 +619,7 @@
 
         function initializeApp() {
             // Set default job description
-            document.getElementById('job-description').value = "We are looking for a skilled Python Developer to join our development team. The ideal candidate should have experience with Python frameworks, API development, and database integration.";
+            document.getElementById('job-description').value = "We are looking for a skilled factory worker or engineer to join our team at GE Appliances. The ideal candidate should have experience with manufacturing processes, equipment maintenance, quality control, safety protocols, and working in a fast-paced production environment.";
             
             // Initialize TTS status
             updateTTSStatus();
@@ -731,71 +794,63 @@
             const indicator = document.getElementById('server-indicator');
             const status = document.getElementById('server-status');
             const apiInfo = document.getElementById('api-info');
-            
-            // Always show the API URL being used
-            if (apiInfo) {
-                const apiHost = API_BASE.split('://')[1]; // Remove protocol
-                apiInfo.textContent = `API: ${apiHost}`;
-            }
-            
+
             try {
-                console.log('Checking server health at:', `${API_BASE}/health`);
-                
-                // Create a timeout promise
-                const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('Request timeout after 5 seconds')), 5000);
+                console.log('Health check starting...');
+
+                const response = await makeAPIRequest('/health', {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache'
                 });
-                
-                // Race between fetch and timeout
-                const response = await Promise.race([
-                    fetch(`${API_BASE}/health`, {
-                        method: 'GET',
-                        mode: 'cors',  // Explicitly set CORS mode
-                        cache: 'no-cache'
-                    }),
-                    timeoutPromise
-                ]);
-                
-                if (!response.ok) {
-                    throw new Error(`Server responded with status: ${response.status} ${response.statusText}`);
-                }
-                
+
                 const data = await response.json();
                 console.log('Server health check successful:', data);
-                
+
                 indicator.className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
                 status.textContent = 'Server Online';
                 status.className = 'text-xs text-green-300';
-                
+
+                if (apiInfo) {
+                    apiInfo.textContent = `API: ${getApiHostDisplay()}`;
+                    apiInfo.className = 'text-xs text-blue-200 opacity-75';
+                }
+
             } catch (error) {
                 console.error('Server health check failed:', error);
-                console.error('API_BASE:', API_BASE);
-                console.error('Current location:', window.location.href);
-                console.error('Network info:', {
-                    online: navigator.onLine,
-                    userAgent: navigator.userAgent
-                });
-                
+
                 indicator.className = 'w-2 h-2 bg-red-400 rounded-full animate-pulse';
-                
+
                 let errorMessage = 'Server Offline';
-                if (error.message.includes('timeout')) {
+                let troubleshootingHint = '';
+
+                if (error?.message?.includes('timeout') || error?.name === 'AbortError') {
                     errorMessage = 'Server Timeout';
-                } else if (error.message.includes('fetch')) {
+                    troubleshootingHint = 'Server may be starting up or overloaded';
+                } else if (error?.message?.includes('fetch') || error?.message?.includes('Failed to fetch')) {
                     errorMessage = 'Connection Failed';
-                } else if (error.message.includes('CORS')) {
-                    errorMessage = 'CORS Error';
+                    if (window.location.protocol === 'https:') {
+                        troubleshootingHint = `Visit ${API_BASE}/health directly and accept the certificate`;
+                    } else {
+                        troubleshootingHint = 'Check if server is running and accessible';
+                    }
+                } else if (error?.message?.toLowerCase().includes('certificate') || error?.message?.toLowerCase().includes('ssl') || error?.message?.toLowerCase().includes('tls')) {
+                    errorMessage = 'Certificate Error';
+                    troubleshootingHint = `Visit ${API_BASE}/health and accept the self-signed certificate`;
                 }
-                
+
                 status.textContent = errorMessage;
                 status.className = 'text-xs text-red-300';
-                
-                // Add helpful error info
-                console.log('🔧 Troubleshooting Tips:');
-                console.log(`1. Verify server is running at: ${API_BASE}`);
-                console.log('2. Check if server allows CORS from this origin');
-                console.log('3. For network testing, try adding ?api_host=SERVER_IP to the URL');
-                console.log(`4. Example: ${window.location.origin}${window.location.pathname}?api_host=192.168.1.100`);
+
+                if (apiInfo) {
+                    if (troubleshootingHint) {
+                        apiInfo.textContent = troubleshootingHint;
+                        apiInfo.className = 'text-xs text-yellow-200';
+                    } else {
+                        apiInfo.textContent = `API: ${getApiHostDisplay()} (offline)`;
+                        apiInfo.className = 'text-xs text-yellow-200';
+                    }
+                }
             }
         }
 
@@ -933,6 +988,7 @@
                                 } else if (now - appState.silenceStart >= SILENCE_DURATION_MS) {
                                     console.log('🔇 5 seconds of silence detected, auto-stopping recording');
                                     autoStopRecording('silence');
+                                    requestAnimationFrame(updateMicLevel);
                                     return;
                                 }
                                 // Reset noise timer since we're in silence
@@ -945,6 +1001,7 @@
                                 } else if (now - appState.noiseStart >= NOISE_DURATION_MS) {
                                     console.log('📢 5 seconds of excessive noise detected, auto-stopping recording');
                                     autoStopRecording('noise');
+                                    requestAnimationFrame(updateMicLevel);
                                     return;
                                 }
                                 // Reset silence timer since we're in noise
@@ -1072,7 +1129,7 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-                const response = await fetch(`${API_BASE}/generate`, {
+                const response = await makeAPIRequest('/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1819,6 +1876,12 @@
                     
                     appState.questionAudio.onended = () => {
                         stopQuestionAudio(false);
+                        // Automatically start recording after question finishes playing
+                        setTimeout(() => {
+                            startRecording().catch(error => {
+                                console.warn('Auto-start recording failed:', error);
+                            });
+                        }, 500); // Small delay to allow UI to update
                     };
                     
                     appState.questionAudio.onerror = () => {
@@ -1851,10 +1914,24 @@
                 }
             }
 
-            if (!appState.micPermission) {
+            // Validate existing mic stream (handle revoked permissions or stopped tracks)
+            if (appState.micStream) {
+                const hasLiveTrack = appState.micStream.getAudioTracks().some(track => track.readyState === 'live');
+                if (!hasLiveTrack) {
+                    appState.micStream.getTracks().forEach(track => track.stop());
+                    appState.micStream = null;
+                    appState.micPermission = false;
+                    console.warn('Existing microphone stream is no longer active. Requesting permission again.');
+                }
+            }
+
+            if (!appState.micPermission || !appState.micStream) {
                 const hasPermission = await ensureMicPermission();
                 if (!hasPermission) {
-                    document.getElementById('mic-warning').style.display = 'block';
+                    const micWarningEl = document.getElementById('mic-warning');
+                    if (micWarningEl) {
+                        micWarningEl.style.display = 'block';
+                    }
                     return;
                 }
             }
@@ -1862,6 +1939,12 @@
             try {
                 stopQuestionAudio();
                 hideRecordingAlert();
+                
+                // Ensure audio context is running before starting recording
+                if (appState.audioContext && appState.audioContext.state === 'suspended') {
+                    console.log('Resuming suspended audio context before recording');
+                    await appState.audioContext.resume();
+                }
                 
                 // Reset recording state completely
                 appState.autoStopReason = null;
