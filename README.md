@@ -1,4 +1,4 @@
-# HR Interview Agent
+# HR Interview Agent - Client-Server Architecture
 
 🎯 **AI-Powered Interview Assistant with GPU Acceleration**
 
@@ -12,152 +12,147 @@ A comprehensive, privacy-focused HR interview system featuring real-time speech 
 - **🧠 AI-Powered Scoring** - Gemma 3:27B model evaluates responses using structured HR rubrics
 - **🔊 High-Quality Text-to-Speech** - Piper high-quality voice synthesis (Lessac, Ryan, Joe, Bryce voices)
 - **📱 Modern Web Interface** - Responsive React frontend with real-time feedback
-- **🔒 Privacy-First** - Voice models are automatically downloaded and cached locally.
-
-### Voice Quality
-
-The system uses **high-quality Piper TTS voices** for natural-sounding speech synthesis:
-
-- **Primary Voice**: `en_US-lessac-high` (professional female voice)
-- **Alternative Voices**: `en_US-ryan-high`, `en_US-joe-high`, `en_US-bryce-high`
-- **Quality**: High-quality models (63MB) vs medium-quality (15MB)
-- **Features**: Better prosody, clearer articulation, more natural intonation
-
-Voice models are automatically downloaded and cached locally.
+- **🔒 Privacy-First** - All processing runs locally, no data leaves your machine
 - **⚡ GPU Acceleration** - Optimized for Apple Silicon and CUDA GPUs
 - **📊 Comprehensive Analytics** - Detailed scoring with linguistic and behavioral competency analysis
 - **🏗️ Client-Server Architecture** - Scalable FastAPI backend with persistent data storage
 
 ## 🏗️ Architecture
 
-### Backend (FastAPI)
-- **Speech-to-Text**: MLX-Whisper for GPU-accelerated transcription
-- **Text-to-Speech**: Piper high-quality voice synthesis (Lessac, Ryan, Joe, Bryce voices)
-- **AI Scoring**: Ollama integration with Gemma 3:27B model
-- **Question Generation**: AI-powered interview question creation
-- **Session Management**: Persistent interview state and audio storage
-- **Data Persistence**: JSON-based storage for interviews and transcripts
+The client-server architecture separates concerns for better scalability and maintainability:
 
-### Frontend (React + Vite)
-- **Interactive UI**: Modern, responsive interview interface
-- **Real-time Audio**: MediaRecorder API for seamless recording
-- **Progress Tracking**: Visual progress indicators and question navigation
-- **Score Visualization**: Comprehensive scoring dashboard
+```
+┌─────────────────┐       HTTP API        ┌─────────────────┐
+│     Client      │ ◄──────────────────► │     Server      │
+│  (Web/Python)   │                       │   (FastAPI)     │
+│                 │                       │                 │
+│  - UI/UX        │                       │  - STT (MLX)    │
+│  - Audio        │                       │  - TTS (Piper)  │
+│  - Recording    │                       │  - LLM (Gemma)  │
+└─────────────────┘                       └─────────────────┘
+```
 
-### Client-Server Setup
-- **Centralized API**: FastAPI server handling all AI processing
-- **HTTPS Support**: Secure communication with self-signed certificates
-- **Multi-Client Support**: Multiple users can connect simultaneously
-- **Persistent Storage**: Interview data survives server restarts
+### Benefits
+
+- **🔒 Privacy-First**: All AI processing runs locally, no data leaves your network
+- **⚡ Performance**: Optimized with Apple Silicon MLX acceleration
+- **🌐 Network-Ready**: HTTPS support for cross-device microphone access
+- **🎯 User-Friendly**: Intelligent auto-stop recording and seamless audio experience
+- **🔧 Flexible**: Multiple client types (web, Python) with RESTful API
+- **📦 Self-Contained**: Minimal dependencies, easy deployment
+- **🆓 Open Source**: Built entirely with open-source models and frameworks
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - **Python 3.12+**
-- **Node.js 18+**
+- **Node.js 18+** (for development)
 - **Ollama** with Gemma 3:27B model
 - **Apple Silicon Mac** (recommended) or CUDA-capable GPU
 
-### Installation
+### 🚀 Option 1: Quick Start (Recommended)
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd hr_agent_final_attempt
-   ```
-
-2. **Set up Python environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-3. **Install Ollama and Gemma model**
-   ```bash
-   # Install Ollama (macOS)
-   brew install ollama
-   
-   # Start Ollama service
-   ollama serve
-   
-   # Pull Gemma model (in a new terminal)
-   ollama pull gemma3:27b
-   ```
-
-4. **Install frontend dependencies**
-   ```bash
-   cd frontend
-   npm install
-   cd ..
-   ```
-
-5. **Start the client-server system**
-   ```bash
-   # Start both client and server with HTTPS
-   cd client_server
-   ./start_client_server.sh
-   ```
-
-6. **Open your browser**
-   - **Web Client**: https://localhost:8443 (HTTPS with self-signed cert)
-   - **API Server**: https://localhost:8002 (HTTPS API)
-   - **API Docs**: https://localhost:8002/docs
-
-### Alternative: Development Mode
-
-For development with hot-reloading:
 ```bash
-./start_dev.sh  # Starts development servers on HTTP
+cd client_server
+./quick_start.sh
 ```
 
-**URLs:**
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
+**This will:**
+- Start the FastAPI server on port 8001
+- Host the web client at `http://localhost:8080/client_server/client/index.html`
+- Generate a self-signed certificate (if needed) and also serve `https://localhost:8443/client_server/client/index.html` so browsers allow microphone access on other devices
+- Automatically open the hosted web client in your browser
+- Display both local and LAN URLs for easy access
 
-## 📋 Usage Guide
+> ⚠️ The HTTPS endpoint uses a self-signed certificate. On Safari/iOS, click "Show Details" → "visit this website" the first time to trust it; Chrome will prompt similarly. Once trusted, microphone access works across your network.
 
-### Starting an Interview
+### ⚙️ Option 2: Advanced Script with Options
 
-1. **Launch the Application**
-   - Navigate to http://localhost:5173
-   - Grant microphone permissions when prompted
+```bash
+cd client_server
+./start_client_server.sh [start|stop|clean|help]
+```
 
-2. **Create Interview Questions**
-   - Enter a job description (e.g., "mechanic", "software engineer")
-   - System generates relevant interview questions using AI
+The script hosts the API on `0.0.0.0:8001` and the web UI on `0.0.0.0:8080`, so teammates on the same network can reach it using your machine's IP address.
 
-3. **Begin Interview Process**
-   - Questions are presented one at a time
-   - Each question is read aloud using natural TTS
-   - Record your responses using the built-in recorder
+### 🔧 Option 3: Manual Start
 
-4. **Review Results**
-   - Automatic transcription of all responses
-   - Comprehensive AI-powered scoring
-   - Detailed feedback on linguistic and behavioral competencies
+```bash
+# Start server
+cd client_server/server
+python3 main.py
 
-### Scoring System
+# Serve the web client (terminal 2)
+cd ../..
+python3 -m http.server 8080 --bind 0.0.0.0
 
-The AI scoring system evaluates responses across two main competencies:
+# Open the hosted UI
+open http://localhost:8080/client_server/client/index.html
+```
 
-**Linguistic Competence (50%)**
-- Clarity & Structure (20%)
-- Grammar & Vocabulary (15%)
-- Conciseness & Relevance (15%)
+## 🎯 Interview Experience Upgrades
 
-**Behavioral Competence (50%)**
-- Professionalism (20%)
-- Confidence & Delivery (15%)
-- Engagement & Adaptability (15%)
+### 🎤 Smart Auto-Stop Recording
+- **Intelligent Timer**: Auto-stop timer only starts after user begins speaking (not immediately)
+- **Audio Processing**: Auto-stopped recordings are processed instead of being discarded
+- **Positive Feedback**: Shows "Processing your response..." instead of error messages
+- **5-Second Detection**: Consistent 5-second duration for both silence and noise detection
+- **No Wasted Audio**: System captures and uses whatever audio was recorded
 
-Each response receives a detailed score out of 10 with specific feedback.
+### 🎵 Enhanced Audio Experience
+- Question audio playback halts when recording or skipping
+- Each question autoplays on arrival for seamless flow
+- Candidates can redo questions before committing their response
+- Upload audio files as an alternative to live recording
 
-## 🛠️ Development
+### 🌐 Network & Connectivity
+- Automatic API host detection for network testing
+- URL parameter support (`?api_host=SERVER_IP`) for cross-device access
+- Clean, distraction-free interface without unnecessary troubleshooting panels
+- HTTPS support with self-signed certificates for microphone access across networks
 
-### Project Structure
+## 🌐 Access URLs
+
+After starting with any method above:
+
+- **🎯 Web Client (local)**: `http://localhost:8080/client_server/client/index.html`
+- **🎯 Web Client (LAN)**: `http://<your-ip>:8080/client_server/client/index.html`
+- **🔧 API Server (local)**: `http://localhost:8001`
+- **🔧 API Server (LAN)**: `http://<your-ip>:8001`
+- **📚 API Documentation**: `http://localhost:8001/docs`
+- **❤️ Health Check**: `http://localhost:8001/health`
+
+> Tip: Run `./start_client_server.sh` to have all URLs printed (including your LAN IP) automatically.
+
+### Use Python Client
+
+```bash
+cd client_server/client
+python3 hr_client.py
+```
+
+## 🚀 Performance & Compatibility
+
+### Recommended System Specifications
+- **RAM**: 8GB minimum, 16GB recommended (with local LLM)
+- **Storage**: 5GB free space
+- **CPU**: Multi-core processor (Apple Silicon preferred for MLX)
+- **Network**: Stable connection for initial model downloads
+
+### Platform Support
+- **macOS**: Full MLX acceleration (Apple Silicon)
+- **Linux**: CPU fallback with good performance
+- **Windows**: CPU fallback supported
+- **Web Browsers**: Chrome, Safari, Firefox, Edge (microphone required)
+
+### Model Performance (Apple Silicon)
+- **Transcription**: <2 seconds for 30-second audio
+- **TTS Generation**: <1 second for typical questions
+- **Memory Footprint**: Optimized for efficiency
+- **Startup Time**: ~10 seconds (models preloaded)
+
+## 📁 Project Structure
 
 ```
 hr_agent_final_attempt/
@@ -200,85 +195,56 @@ hr_agent_final_attempt/
 └── README.md                # This documentation
 ```
 
-## 📊 Technical Specifications
+## 🤖 Open-Source Models & Technologies
 
-### System Requirements
+### Speech-to-Text (STT)
+**MLX-Whisper**
+- **Model**: OpenAI Whisper (various sizes: tiny, base, small, medium, large)
+- **Memory**: 39MB (tiny) to 3.09GB (large-v3)
+- **License**: MIT License
+- **Optimization**: Apple Silicon (MLX) acceleration
+- **Fallback**: OpenAI Whisper (CPU) for non-Apple Silicon systems
+- **Repository**: [ml-explore/mlx-whisper](https://github.com/ml-explore/mlx-whisper)
 
-**Minimum:**
-- 8GB RAM
-- 10GB free disk space
-- Modern web browser with microphone support
+### Text-to-Speech (TTS)
+**Piper TTS**
+- **Model**: Lessac (High Quality)
+- **File Size**: ~63MB (en_US-lessac-high.onnx)
+- **Memory Usage**: ~100-200MB during synthesis
+- **License**: MIT License
+- **Format**: ONNX optimized neural voice
+- **Repository**: [rhasspy/piper](https://github.com/rhasspy/piper)
+- **Voice Quality**: Professional, natural, human-like speech synthesis
 
-**Recommended:**
-- 16GB+ RAM (for Gemma model)
-- Apple Silicon Mac (for MLX acceleration)
-- High-quality microphone
-- Stable internet connection (for initial model downloads)
+### Language Model (LLM)
+**Gemma 3:27B**
+- **Model**: Google Gemma 3 (27B parameters)
+- **Memory**: ~16GB VRAM required
+- **License**: Apache 2.0 License
+- **Integration**: Ollama for local inference
+- **Repository**: [google/gemma](https://github.com/google/gemma)
 
-### Dependencies
+### System Requirements by Model
 
-**Backend (Python):**
-- FastAPI 0.104+
-- MLX-Whisper (Apple Silicon optimization)
-- Piper-TTS (high-quality voice synthesis)
-- httpx (async HTTP client)
-- Ollama Python client
+| Component | Memory Usage | Disk Space | License |
+|-----------|-------------|------------|---------|
+| MLX-Whisper (base) | ~1GB | ~150MB | MIT |
+| Piper TTS (Lessac High) | ~200MB | ~63MB | MIT |
+| Gemma 27B (optional) | ~16GB | ~16GB | Apache 2.0 |
+| **Total Minimum** | **~1.2GB** | **~213MB** | **Mixed** |
+| **With LLM** | **~17.2GB** | **~16.2GB** | **Mixed** |
 
-**Frontend (JavaScript):**
-- React 18+
-- Vite 4+ (build tool)
-- Tailwind CSS (styling)
+## API Endpoints
 
-### Performance Metrics
+The server exposes RESTful endpoints:
 
-- **Transcription**: <2 seconds for 30-second audio clips (Apple Silicon)
-- **TTS Generation**: <1 second for typical questions (high-quality voices)
-- **AI Scoring**: 3-5 seconds per response (Gemma 27B)
-- **Memory Usage**: ~8GB peak (with Gemma model loaded)
-- **Voice Quality**: High-quality Piper voices (63MB models vs 15MB medium)
-
-## Configuration
-
-Create a `.env` file with:
-
-```bash
-HOST=0.0.0.0
-PORT=8000
-OLLAMA_BASE_URL=http://localhost:11434
-GEMMA_MODEL = "gemma3:27b"
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-**Microphone Access**
-- Ensure browser has microphone permissions
-- On macOS: System Settings → Privacy & Security → Microphone
-
-**Ollama Connection**
-- Verify Ollama is running: `ollama serve`
-- Check model is installed: `ollama list`
-- No scoring results in summary
-- Ensure Gemma model is available: `ollama pull gemma3:27b`
-- Check Ollama service: `ollama list`
-
-**Audio Issues**
-- Check browser audio permissions
-- Verify high-quality TTS voice files are downloaded in `piper_voices/` and `client_server/server/piper_voices/`
-- Test audio endpoints: `curl http://localhost:8000/api/tts/health`
-- Voice quality issues: Run `python client_server/server/download_hq_voices.py` to download high-quality voices
-
-**GPU Acceleration**
-- MLX-Whisper requires Apple Silicon for optimal performance
-- For other systems, the app falls back to CPU processing
-
-### Performance Tips
-
-- **Use Apple Silicon Mac** for best MLX-Whisper performance
-- **Ensure sufficient RAM** (16GB+ recommended for Gemma model)
-- **Close unnecessary applications** when running interviews
-- **Use wired microphone** for best audio quality
+- `POST /transcribe` - Speech to text (MLX-Whisper)
+- `POST /synthesize` - Text to speech (Piper TTS)
+- `POST /generate` - LLM text generation (Ollama integration)
+- `POST /interview/start` - Start interview session
+- `POST /interview/submit` - Submit response
+- `GET /health` - Server health check
+- `GET /models/status` - Model loading status
 
 ## 📄 License
 
