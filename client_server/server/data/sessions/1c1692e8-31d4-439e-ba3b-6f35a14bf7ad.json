@@ -1,0 +1,20 @@
+{
+  "candidate_name": null,
+  "job_role": null,
+  "job_description": "We are looking for a skilled Python Developer to join our development team. The ideal candidate should have experience with Python frameworks, API development, and database integration.",
+  "questions": [
+    "Describe a challenging API you've developed or integrated with, and how you approached it?",
+    "How do you typically handle error handling and logging in your Python applications?",
+    "Can you discuss your experience with different Python frameworks like Django or Flask, and when you might choose one over the other?",
+    "Describe your experience designing and interacting with databases in a Python environment?",
+    "What strategies do you employ to ensure the scalability and performance of your Python code?"
+  ],
+  "current_question": 0,
+  "status": "active",
+  "question_source": "client",
+  "used_fallback": false,
+  "responses": [],
+  "session_id": "1c1692e8-31d4-439e-ba3b-6f35a14bf7ad",
+  "created_at": "2025-09-29T23:10:36.926601",
+  "updated_at": "2025-09-29T23:10:36.926620"
+}

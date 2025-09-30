@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     OLLAMA_MODEL: str = "gemma3:27b"
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     DATA_DIR: str = "hr_agent/data"
     UPLOAD_DIR: str = "hr_agent/uploads"
     

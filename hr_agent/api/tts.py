@@ -16,7 +16,7 @@ router = APIRouter()
 
 class TTSRequest(BaseModel):
     text: str
-    voice: str = "en_US-amy-medium"  # Default Piper voice
+    voice: str = "en_US-lessac-high"  # Default high-quality Piper voice
     ensure_punctuation: bool = True   # Append period if missing to avoid premature truncation
     length_scale: Optional[float] = None  # Speaking rate adjustment (values <1 faster, >1 slower)
     noise_scale: Optional[float] = None   # Voice variance
@@ -53,7 +53,7 @@ def _cache_put(key: str, audio: bytes):
             oldest_key = min(_tts_cache.items(), key=lambda kv: kv[1][1])[0]
             _tts_cache.pop(oldest_key, None)
 
-def get_piper_voice(voice_name: str = "en_US-amy-medium"):
+def get_piper_voice(voice_name: str = "en_US-lessac-high"):
     """Load Piper voice lazily"""
     global _piper_voice, _current_voice_name
     
@@ -274,10 +274,11 @@ async def get_available_voices():
                 options.append({"name": name, "language": "English", "quality": name.split("-")[-1]})
         if not options:
             options = [
-                {"name": "en_US-amy-medium", "language": "English (US)", "quality": "medium"},
+                {"name": "en_US-lessac-high", "language": "English (US)", "quality": "high"},
                 {"name": "en_US-ryan-high", "language": "English (US)", "quality": "high"},
-                {"name": "en_US-lessac-medium", "language": "English (US)", "quality": "medium"},
-                {"name": "en_GB-alan-medium", "language": "English (UK)", "quality": "medium"},
+                {"name": "en_US-joe-high", "language": "English (US)", "quality": "high"},
+                {"name": "en_US-bryce-high", "language": "English (US)", "quality": "high"},
+                {"name": "en_US-amy-medium", "language": "English (US)", "quality": "medium"},
             ]
         return {"voices": options}
     except Exception as e:
@@ -289,7 +290,7 @@ async def tts_health(voice_name: str | None = None):
     Check if Piper TTS is working
     """
     try:
-        get_piper_voice(voice_name or "en_US-amy-medium")
+        get_piper_voice(voice_name or "en_US-lessac-high")
         return {"status": "ok", "tts_engine": "piper", "voice": _current_voice_name}
     except Exception as e:
         return {"status": "error", "error": str(e)}

@@ -99,7 +99,10 @@ start_services() {
 
     echo "--- Starting Services ---"
     echo "Starting backend server..."
-    (cd "$(dirname "$0")" && export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" && source venv/bin/activate && python -m uvicorn hr_agent.main:app --host 0.0.0.0 --port 8000 --reload --reload-delay 1) &
+    (
+        cd "$ROOT_DIR" || exit
+        uvicorn hr_agent.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir hr_agent
+    ) > >(tee -a "$LOG_FILE") 2>&1 &
     BACKEND_PID=$!
     echo "Backend server started with PID $BACKEND_PID"
 

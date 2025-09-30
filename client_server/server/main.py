@@ -314,7 +314,7 @@ class TranscribeRequest(BaseModel):
 class SynthesizeRequest(BaseModel):
     """Request model for speech synthesis."""
     text: str
-    voice: str = "en_US-amy-medium"
+    voice: str = "en_US-lessac-high"
 
 
 class GenerateRequest(BaseModel):

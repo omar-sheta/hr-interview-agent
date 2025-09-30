@@ -124,8 +124,18 @@ async def transcribe_audio_mlx(file_path: str, *, detailed: bool = False) -> str
             return _json.dumps(diagnostic)
         return transcript
     except Exception as e:
-        print(f"❌ MLX-Whisper transcription failed: {e}")
-        return f"[Transcription error: {e}]"
+        error_msg = str(e)
+        print(f"❌ MLX-Whisper transcription failed: {error_msg}")
+        
+        # Provide more helpful error messages
+        if "Invalid data found when processing input" in error_msg:
+            return "[Transcription error: The uploaded file is not a valid audio format. Please ensure you're uploading an audio file (.webm, .wav, .mp3, etc.) rather than a text file.]"
+        elif "Error opening input" in error_msg:
+            return "[Transcription error: Unable to open the audio file. Please check the file format and try again.]"
+        elif "Failed to load audio" in error_msg:
+            return "[Transcription error: Audio file could not be loaded. This may be due to an unsupported format or corrupted file.]"
+        else:
+            return f"[Transcription error: {error_msg}]"
     finally:
         # Cleanup normalized file if created
         if norm_path and norm_path != file_path:

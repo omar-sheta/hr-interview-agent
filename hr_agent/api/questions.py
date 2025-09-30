@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List
-import ollama
+from typing import List, Optional
+import requests
+from datetime import datetime
 
 from hr_agent.config import settings
 
