@@ -1,4 +1,4 @@
-```markdown
+
 # HR Interview Agent — Client–Server Architecture
 
 🎯 **AI-Powered Interview Assistant with GPU Acceleration (Self-Hosted)**
