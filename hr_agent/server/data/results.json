@@ -10,7 +10,7 @@
       {
         "question_index": 0,
         "question": "Describe a time you had to debug a complex issue in a distributed system?",
-        "transcript": "My name is Daniela. I am from Colombia. You are high.",
+        "transcript": "My name is Omar. I am from Egypt.",
         "transcript_id": "db690f46-3ca9-433f-b7c8-5fcef0b18e7e_0_1763408697"
       },
       {
@@ -71,340 +71,57 @@
     "status": "pending"
   },
   {
-    "session_id": "325e8ce1-d257-4f99-a384-5dff83176342",
-    "candidate_id": "candidate-1",
-    "candidate_username": "omar",
-    "interview_id": "int-1",
-    "interview_title": "Backend Engineer Screen",
-    "timestamp": "2025-11-17T15:06:36.492076",
-    "answers": [
-      {
-        "question_index": 0,
-        "question": "Describe a time you had to debug a complex issue in a production backend system?",
-        "transcript": "My name is Omar.",
-        "transcript_id": "325e8ce1-d257-4f99-a384-5dff83176342_0_1763409954"
-      },
-      {
-        "question_index": 1,
-        "question": "How do you approach designing a scalable API for a high-traffic application?",
-        "transcript": "My name is Omar.",
-        "transcript_id": "325e8ce1-d257-4f99-a384-5dff83176342_1_1763409961"
-      },
-      {
-        "question_index": 2,
-        "question": "Explain your experience with different database technologies and when you would choose one over another?",
-        "transcript": "[Question was skipped by the candidate]",
-        "transcript_id": "325e8ce1-d257-4f99-a384-5dff83176342_2_1763409978"
-      }
-    ],
-    "feedback": [
-      {
-        "question_index": 0,
-        "feedback": "This response is severely lacking. Simply stating their name doesn't even *begin* to answer the question asked. It demonstrates zero technical ability, problem-solving skills, or communication related to the prompt.",
-        "strengths": "None apparent from this response.",
-        "areas_for_improvement": "Everything. The candidate needs to actually *answer the question* with a relevant example, detailing the issue, their approach to debugging, and the resolution. They need to demonstrate technical understanding and communication skills.",
-        "score": 1
-      },
-      {
-        "question_index": 1,
-        "feedback": "This response is severely lacking. Simply stating one's name doesn't even *begin* to address the question asked, demonstrating zero relevance or technical understanding. It fails on every evaluation criterion.",
-        "strengths": "None apparent from this response.",
-        "areas_for_improvement": "Everything. The candidate needs to actually *answer* the question, demonstrate technical knowledge related to API design and scalability, and communicate professionally. They should focus on understanding the prompt before responding.",
-        "score": 1
-      },
-      {
-        "question_index": 2,
-        "feedback": "The candidate skipped the question entirely, demonstrating a complete lack of response and therefore no demonstration of any relevant skills or knowledge. This is a critical failure in an interview setting, as it shows unwillingness or inability to address a core competency being assessed.",
-        "strengths": "None demonstrated.",
-        "areas_for_improvement": "Absolutely needs to address *all* questions asked, even if unsure of the answer. Acknowledging a lack of experience and stating a willingness to learn would be far preferable to silence. The candidate needs to practice active listening and responding to technical inquiries.",
-        "score": 1
-      }
-    ],
-    "scores": {
-      "average": 1.0,
-      "details": [
-        {
-          "question_index": 0,
-          "score": 1
-        },
-        {
-          "question_index": 1,
-          "score": 1
-        },
-        {
-          "question_index": 2,
-          "score": 1
-        }
-      ]
-    },
-    "summary": "Interview completed with average score of 1.0/10",
-    "id": "d945604e-7cd2-4ece-ba79-595a69433d92",
-    "status": "pending"
-  },
-  {
-    "session_id": "2ab5a663-5e05-4839-ac1b-ba564fb3918e",
-    "candidate_id": "candidate-1",
-    "candidate_username": "omar",
-    "interview_id": "int-1",
-    "interview_title": "Backend Engineer Screen",
-    "timestamp": "2025-11-17T15:20:11.604937",
-    "answers": [
-      {
-        "question_index": 0,
-        "question": "Describe a time you had to debug a complex issue in a production backend system?",
-        "transcript": "[Question was skipped by the candidate]",
-        "transcript_id": "2ab5a663-5e05-4839-ac1b-ba564fb3918e_0_1763410790"
-      },
-      {
-        "question_index": 1,
-        "question": "How do you approach designing a scalable API for a high-traffic application?",
-        "transcript": "[Question was skipped by the candidate]",
-        "transcript_id": "2ab5a663-5e05-4839-ac1b-ba564fb3918e_1_1763410791"
-      },
-      {
-        "question_index": 2,
-        "question": "Explain your experience with different database technologies and when you would choose one over another?",
-        "transcript": "[Question was skipped by the candidate]",
-        "transcript_id": "2ab5a663-5e05-4839-ac1b-ba564fb3918e_2_1763410792"
-      }
-    ],
-    "feedback": [
-      {
-        "question_index": 0,
-        "feedback": "The candidate skipped the question entirely, demonstrating a complete lack of response to a core technical competency assessment. This is a significant negative signal, suggesting either a lack of experience, inability to articulate a solution, or unwillingness to engage with the technical aspects of the role.",
-        "strengths": "None discernible from this response.",
-        "areas_for_improvement": "The candidate *must* answer the question. Even a brief attempt to describe a situation, even if incomplete, would be better than silence. Preparation for common technical interview questions is crucial.",
-        "score": 1
-      },
-      {
-        "question_index": 1,
-        "feedback": "The candidate skipped the question entirely, demonstrating a complete lack of response to a core technical inquiry. This immediately signals a significant gap in either knowledge, preparedness, or ability to handle pressure \u2013 all critical for a successful candidate.",
-        "strengths": "None demonstrated in this response.",
-        "areas_for_improvement": "The candidate needs to *answer* the question! Even a partial or high-level response would have been better than silence. Preparation for technical interviews is crucial, and the candidate should practice articulating their approach to common design challenges.",
-        "score": 1
-      },
-      {
-        "question_index": 2,
-        "feedback": "The candidate skipped the question entirely, demonstrating a complete lack of response to a core technical inquiry. This immediately signals a significant gap in either knowledge, preparedness, or willingness to engage with the technical aspects of the role.",
-        "strengths": "None demonstrated in this response.",
-        "areas_for_improvement": "The candidate *must* answer the question. Even stating \"I have limited experience with databases, but I'm eager to learn\" would be significantly better than silence. Preparation for technical interviews is crucial, and the candidate needs to address this lack of response immediately.",
-        "score": 1
-      }
-    ],
-    "scores": {
-      "average": 1.0,
-      "details": [
-        {
-          "question_index": 0,
-          "score": 1
-        },
-        {
-          "question_index": 1,
-          "score": 1
-        },
-        {
-          "question_index": 2,
-          "score": 1
-        }
-      ]
-    },
-    "summary": "Interview completed with average score of 1.0/10",
-    "id": "e93328ca-10f0-4ed0-94e6-b7377bc63bf9",
-    "status": "pending"
-  },
-  {
-    "session_id": "208386cb-cfc8-46d2-932f-e1cb47a0cf57",
-    "candidate_id": "candidate-1",
-    "candidate_username": "omar",
-    "interview_id": "int-1",
-    "interview_title": "Backend Engineer Screen",
-    "timestamp": "2025-11-17T15:34:19.256610",
-    "answers": [
-      {
-        "question_index": 0,
-        "question": "Describe a time you designed a system to handle a significant increase in user traffic?",
-        "transcript": "My name is Omar.",
-        "transcript_id": "208386cb-cfc8-46d2-932f-e1cb47a0cf57_0_1763411621"
-      },
-      {
-        "question_index": 1,
-        "question": "How do you approach debugging a performance bottleneck in a distributed system?",
-        "transcript": "Hi, my name is Omar.",
-        "transcript_id": "208386cb-cfc8-46d2-932f-e1cb47a0cf57_1_1763411629"
-      },
-      {
-        "question_index": 2,
-        "question": "Explain your experience with different database technologies and when you would choose one over another?",
-        "transcript": "Hello, I am Omar.",
-        "transcript_id": "208386cb-cfc8-46d2-932f-e1cb47a0cf57_2_1763411636"
-      }
-    ],
-    "feedback": [
-      {
-        "question_index": 0,
-        "feedback": "This response is severely lacking. Simply stating a name doesn't even *begin* to answer the question asked, demonstrating zero relevance or completeness. There is absolutely no demonstration of technical knowledge, problem-solving, or communication skills within this \"answer.\"",
-        "strengths": "None apparent from this response.",
-        "areas_for_improvement": "Everything. The candidate needs to actually *answer* the question, provide a relevant example, detail the system designed, explain the increase in traffic, and showcase their problem-solving process. They should focus on the STAR method (Situation, Task, Action, Result) to structure a comprehensive response.",
-        "score": 1
-      },
-      {
-        "question_index": 1,
-        "feedback": "This response is severely lacking. Simply stating their name doesn't address the question *at all*. It demonstrates zero technical knowledge, problem-solving ability, or communication related to the prompt.",
-        "strengths": "None apparent from this response. The candidate at least identified themselves.",
-        "areas_for_improvement": "Everything. The candidate needs to *answer the question*. They need to demonstrate understanding of distributed systems, debugging techniques, and be able to articulate a logical approach to identifying and resolving performance bottlenecks. They should have prepared for behavioral/technical questions and have examples ready.",
-        "score": 1
-      },
-      {
-        "question_index": 2,
-        "feedback": "This response is severely lacking. Simply stating their name doesn't address the question *at all*. There is zero demonstration of technical knowledge, problem-solving, or even basic communication related to the prompt.",
-        "strengths": "Omar identified himself \u2013 a basic level of professionalism is present.",
-        "areas_for_improvement": "Everything. The candidate needs to *answer the question*. They need to demonstrate knowledge of database technologies (SQL, NoSQL, etc.), explain when they'd choose one over another (considering factors like data structure, scalability, and query needs), and provide specific examples of when they've used these technologies. This response requires a complete overhaul.",
-        "score": 2.0
-      }
-    ],
-    "scores": {
-      "average": 1.3,
-      "details": [
-        {
-          "question_index": 0,
-          "score": 1
-        },
-        {
-          "question_index": 1,
-          "score": 1
-        },
-        {
-          "question_index": 2,
-          "score": 2.0
-        }
-      ]
-    },
-    "summary": "Interview completed with average score of 1.3/10",
-    "id": "3e69d347-66f0-4c37-b64e-661b8ae2e387",
-    "status": "pending"
-  },
-  {
-    "session_id": "0b903b07-0a0f-459d-9547-3dfb5ca7506e",
-    "candidate_id": "candidate-1",
-    "candidate_username": "omar",
-    "interview_id": "int-1",
-    "interview_title": "Backend Engineer Screen",
-    "timestamp": "2025-11-17T15:51:16.522381",
-    "answers": [
-      {
-        "question_index": 0,
-        "question": "Describe a time you had to debug a complex issue in a production backend system?",
-        "transcript": "My name is Omar.",
-        "transcript_id": "0b903b07-0a0f-459d-9547-3dfb5ca7506e_0_1763412640"
-      },
-      {
-        "question_index": 1,
-        "question": "How do you approach designing a scalable API, considering potential future growth?",
-        "transcript": "Hello, my name is Omar.",
-        "transcript_id": "0b903b07-0a0f-459d-9547-3dfb5ca7506e_1_1763412646"
-      },
-      {
-        "question_index": 2,
-        "question": "Explain your experience with different database technologies and when you would choose one over another?",
-        "transcript": "Hi, my name is Omar.",
-        "transcript_id": "0b903b07-0a0f-459d-9547-3dfb5ca7506e_2_1763412654"
-      }
-    ],
-    "feedback": [
-      {
-        "question_index": 0,
-        "feedback": "This response is severely lacking. Simply stating their name doesn't even *begin* to answer the question asked, demonstrating zero relevance or technical insight. It fails on every evaluation criterion.",
-        "strengths": "None apparent from this response.",
-        "areas_for_improvement": "Everything. The candidate needs to actually *answer the question* with a specific example, detailing the issue, their debugging process, and the resolution. They need to demonstrate technical understanding and communication skills.",
-        "score": 1
-      },
-      {
-        "question_index": 1,
-        "feedback": "This response is severely lacking. Simply stating their name doesn't address the question *at all*. It demonstrates zero technical knowledge, problem-solving ability, or communication relevant to the prompt.",
-        "strengths": "None apparent from this response. The candidate at least identified themselves.",
-        "areas_for_improvement": "Everything. The candidate needs to *answer the question*. They should demonstrate understanding of API design principles, scalability concepts (like statelessness, caching, database sharding, etc.), and how to anticipate future growth when making architectural decisions. They need to provide *any* relevant information to demonstrate competence.",
-        "score": 1
-      },
-      {
-        "question_index": 2,
-        "feedback": "This response is severely lacking. Simply stating their name doesn't address the question *at all*. There is zero demonstration of technical knowledge, problem-solving, or even basic communication related to the prompt.",
-        "strengths": "Technically, the candidate *did* respond, and introduced themselves \u2013 a baseline level of professionalism is present.",
-        "areas_for_improvement": "Everything. The candidate needs to actually *answer* the question. They need to demonstrate knowledge of database technologies (SQL, NoSQL, etc.), explain when they've used them, and articulate *why* one might be chosen over another based on project needs. This response requires a complete overhaul.",
-        "score": 2.0
-      }
-    ],
-    "scores": {
-      "average": 1.3,
-      "details": [
-        {
-          "question_index": 0,
-          "score": 1
-        },
-        {
-          "question_index": 1,
-          "score": 1
-        },
-        {
-          "question_index": 2,
-          "score": 2.0
-        }
-      ]
-    },
-    "summary": "Interview completed with average score of 1.3/10",
-    "id": "ae302a57-e91b-42c2-bdd8-7459f81e8c89"
-  },
-  {
-    "session_id": "24a30b00-a4d6-4a4e-8701-597cb3b541d9",
+    "session_id": "5401e8a4-45a0-4180-a766-742e5acf2f3c",
     "candidate_id": "candidate-1",
     "candidate_username": "omar",
     "interview_id": "int-5afe1215-b50f-4cb5-aa66-923079c5fc04",
     "interview_title": "Backend Engineer Screening",
-    "timestamp": "2025-11-17T16:34:13.070334",
+    "timestamp": "2025-11-17T17:04:06.853337",
     "answers": [
       {
         "question_index": 0,
-        "question": "Describe a time you designed a REST API, and what considerations did you make regarding scalability and idempotency?",
-        "transcript": "[Question was skipped by the candidate]",
-        "transcript_id": "24a30b00-a4d6-4a4e-8701-597cb3b541d9_0_1763415232"
+        "question": "Describe a time you designed and implemented a REST API, detailing your considerations for scalability and maintainability?",
+        "transcript": "I don't recall any experience doing this. What do you think I should do? But I did it very well. Thank you.",
+        "transcript_id": "5401e8a4-45a0-4180-a766-742e5acf2f3c_0_1763416859"
       },
       {
         "question_index": 1,
-        "question": "How do you approach debugging and troubleshooting issues in a distributed microservices architecture?",
-        "transcript": "[Question was skipped by the candidate]",
-        "transcript_id": "24a30b00-a4d6-4a4e-8701-597cb3b541d9_1_1763415232"
+        "question": "How do you approach debugging and troubleshooting performance issues in a distributed microservices architecture?",
+        "transcript": "I do it one by one, have a plan for each one, then I have an integration plan for all of them together. And if one fails, then we fix it first before we integrate it.",
+        "transcript_id": "5401e8a4-45a0-4180-a766-742e5acf2f3c_1_1763416937"
       },
       {
         "question_index": 2,
-        "question": "Explain your experience with database schema design and optimization for high-volume applications?",
-        "transcript": "[Question was skipped by the candidate]",
-        "transcript_id": "24a30b00-a4d6-4a4e-8701-597cb3b541d9_2_1763415232"
+        "question": "Explain your experience with database schema design and optimization for high-volume data storage and retrieval?",
+        "transcript": "\u0627\u0644\u062d\u0642\u064a\u0642\u0629 \u0623\u0646\u0627 \u0639\u0645\u0631\u064a \u0645\u0627 \u0627\u0633\u062a\u0639\u0645\u0644\u062a \u0642\u0648\u0627\u0639\u062f \u0628\u064a\u0627\u0646\u0627\u062a \u062e\u0627\u0644\u0635 \u0648\u0645\u0627 \u0644\u064a\u0634 \u062f\u0639\u0648\u0629 \u0628\u0627\u0644\u0645\u0648\u0636\u0648\u0639 \u062f\u0647",
+        "transcript_id": "5401e8a4-45a0-4180-a766-742e5acf2f3c_2_1763417007"
       }
     ],
     "feedback": [
       {
         "question_index": 0,
-        "feedback": "The candidate skipped the question entirely, demonstrating a complete lack of response to a core technical inquiry. This immediately signals a significant gap in either knowledge, experience, or interview preparedness, and is a critical negative indicator.",
-        "strengths": "None apparent from this response.",
-        "areas_for_improvement": "The candidate *must* attempt to answer technical questions, even if they don't have a perfect answer. A willingness to articulate thought processes, even with gaps in knowledge, is far more valuable than silence. They should prepare for common technical interview questions relevant to the role.",
+        "feedback": "This response is extremely poor. The candidate admits to lacking the requested experience, then contradicts themselves by claiming to have done it \"very well\" and asking *me* what they should do \u2013 demonstrating a complete lack of self-awareness and professionalism.",
+        "strengths": "None apparent in this response.",
+        "areas_for_improvement": "Everything. The candidate needs to be honest about skill gaps, demonstrate some level of technical understanding (even if admitting lack of direct experience), and exhibit professional communication. They should *never* turn the question back to the interviewer or claim success where none exists.",
         "score": 1
       },
       {
         "question_index": 1,
-        "feedback": "The candidate skipped the question entirely, demonstrating a complete lack of response and therefore no demonstration of any relevant skills. This is a critical failure in an interview, especially for a technical role requiring troubleshooting abilities.",
-        "strengths": "None demonstrated.",
-        "areas_for_improvement": "Absolutely needs to answer the question! Even a brief acknowledgement of lacking experience and a willingness to learn would be better than silence. The candidate needs to practice handling challenging technical questions and being prepared to address them, even if they don't have a perfect answer immediately.",
-        "score": 1
+        "feedback": "This response is very high-level and lacks the depth expected for a troubleshooting discussion in a microservices environment. While the candidate mentions a planned approach, it\u2019s incredibly generic and doesn\u2019t demonstrate a solid understanding of the complexities involved in debugging distributed systems. It feels like a description of *a* process, not *the* process for this specific, challenging scenario.",
+        "strengths": "The candidate demonstrates a logical, iterative approach \u2013 tackling issues one by one and prioritizing integration after fixes. They acknowledge the need for a plan, which is a good starting point.",
+        "areas_for_improvement": "The response lacks any technical detail. The candidate should have mentioned tools (logging, tracing, metrics), specific strategies (identifying bottlenecks, correlating requests across services, canary deployments), or even a basic understanding of how to isolate failures in a distributed system. Providing a specific example of a past troubleshooting experience would have significantly improved the answer.",
+        "score": 4.0
       },
       {
         "question_index": 2,
-        "feedback": "The candidate skipped the question entirely, demonstrating a complete lack of response to a core technical inquiry. This immediately signals a significant gap in either knowledge, preparedness, or willingness to engage with the technical aspects of the role. It's a critical failure in the interview process.",
-        "strengths": "None demonstrated.",
-        "areas_for_improvement": "Absolutely everything. The candidate needs to prepare for technical interviews, understand the importance of answering *all* questions, and be honest about their skill level if they lack experience in a specific area \u2013 even a simple \"I don't have direct experience with that, but I'm eager to learn\" would be far better than silence.",
+        "feedback": "This response is extremely poor. The candidate directly states they have *no* experience with database schema design or optimization, which is a critical skill for the role implied by the question. This demonstrates a complete lack of relevant qualifications.",
+        "strengths": "Honesty (though brutally so).",
+        "areas_for_improvement": "Everything. The candidate needs to either be truthful about their lack of experience *and* express a willingness to learn, or (preferably) not apply for roles requiring this skillset. They should *never* directly state they have no experience when asked about a core competency.",
         "score": 1
       }
     ],
     "scores": {
-      "average": 1.0,
+      "average": 2.0,
       "details": [
         {
           "question_index": 0,
@@ -412,7 +129,7 @@
         },
         {
           "question_index": 1,
-          "score": 1
+          "score": 4.0
         },
         {
           "question_index": 2,
@@ -420,7 +137,8 @@
         }
       ]
     },
-    "summary": "Interview completed with average score of 1.0/10",
-    "id": "da9d3862-3f9e-4c84-a503-5a78171f52e2"
+    "summary": "Interview completed with average score of 2.0/10",
+    "status": "pending",
+    "id": "7e534971-206e-43db-89cc-7c55a1868cf6"
   }
 ]

@@ -6,13 +6,18 @@
     "config": {
       "job_role": "Backend Engineer",
       "job_description": "Evaluate backend fundamentals and systems thinking.",
-      "num_questions": 3
+      "num_questions": 3,
+      "questions": [
+        "Describe a time you had to debug a complex issue in a production backend system?",
+        "How do you approach designing a scalable API for a high-traffic application?",
+        "Explain your experience with different database technologies and when you would choose one over another?"
+      ]
     },
     "allowed_candidate_ids": [
       "candidate-1"
     ],
     "active": true,
-    "updated_at": "2025-11-17T15:55:43.670618",
+    "updated_at": "2025-11-17T16:56:11.247432",
     "status": "ready"
   },
   {

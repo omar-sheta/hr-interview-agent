@@ -42,7 +42,7 @@ const CandidateDashboard = () => {
       try {
         setLoadingHistory(true);
         const completion = await api.get('/api/candidate/results', {
-          params: { candidate_id: user.user_id },
+          params: { candidate_id: user.user_id, candidate_username: user.username },
         });
         const results = completion.data.results || [];
         const doneIds = new Set(results.map((result) => result.interview_id));

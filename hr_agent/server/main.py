@@ -606,13 +606,22 @@ async def start_candidate_interview(interview_id: str, request: CandidateIntervi
 
 
 @app.get("/api/candidate/results")
-async def list_candidate_results(candidate_id: str = Query(..., description="Candidate user id")):
+async def list_candidate_results(
+    candidate_id: str = Query(..., description="Candidate user id"),
+    candidate_username: Optional[str] = Query(None, description="Candidate username fallback"),
+):
     """Allow candidates to check which interviews they have completed."""
     candidate = _require_candidate(candidate_id)
+    results = data_manager.load_results()
     candidate_results = [
-        result for result in data_manager.load_results()
+        result for result in results
         if str(result.get("candidate_id")) == str(candidate.get("id"))
     ]
+    if not candidate_results and candidate_username:
+        candidate_results = [
+            result for result in results
+            if str(result.get("candidate_username", "")).lower() == candidate_username.lower()
+        ]
     return {"results": candidate_results}
 
 

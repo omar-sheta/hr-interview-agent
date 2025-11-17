@@ -1,0 +1,44 @@
+{
+  "candidate_name": "omar",
+  "job_role": "Backend Engineer",
+  "job_description": "You\u2019ll work on REST APIs, microservices, databases, and system design.",
+  "questions": [
+    "Describe a time you designed a REST API, and what considerations did you make regarding scalability and idempotency?",
+    "How do you approach debugging performance issues in a distributed microservices architecture?",
+    "Explain your experience with database schema design and optimization for high-volume data access?"
+  ],
+  "current_question": 3,
+  "status": "completed",
+  "question_source": "ollama",
+  "used_fallback": false,
+  "responses": [
+    {
+      "question_index": 0,
+      "transcript_id": "55bea3c3-f173-4459-bd63-451edd3ffac0_0_1763416075",
+      "submitted_at": "2025-11-17T16:48:03.977642"
+    },
+    {
+      "question_index": 1,
+      "transcript_id": "55bea3c3-f173-4459-bd63-451edd3ffac0_1_1763416085",
+      "submitted_at": "2025-11-17T16:48:05.014406"
+    },
+    {
+      "question_index": 2,
+      "transcript_id": "55bea3c3-f173-4459-bd63-451edd3ffac0_2_1763416085",
+      "submitted_at": "2025-11-17T16:48:05.522753"
+    }
+  ],
+  "session_id": "55bea3c3-f173-4459-bd63-451edd3ffac0",
+  "created_at": "2025-11-17T16:47:32.973056",
+  "updated_at": "2025-11-17T16:48:05.524634",
+  "candidate_id": "candidate-1",
+  "candidate_username": "omar",
+  "interview_id": "int-5afe1215-b50f-4cb5-aa66-923079c5fc04",
+  "interview_title": "Backend Engineer Screening",
+  "interview_description": "This is a 20-minute HR + technical screen for backend fundamentals.",
+  "interview_config": {
+    "job_role": "Backend Engineer",
+    "job_description": "You\u2019ll work on REST APIs, microservices, databases, and system design.",
+    "num_questions": 3
+  }
+}
