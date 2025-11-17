@@ -1,5 +1,0 @@
-fastapi
-uvicorn[standard]
-python-multipart
-requests
-pydantic>=2.7,<3

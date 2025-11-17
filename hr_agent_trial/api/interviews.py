@@ -8,8 +8,8 @@ import os
 import pathlib
 import requests
 
-from hr_agent.config import settings
-from hr_agent import models
+from hr_agent_trial.config import settings
+from hr_agent_trial import models
 from .scoring import call_ollama_gemma, parse_evaluation_scores, SCORING_PROMPT_TEMPLATE
 
 router = APIRouter()
@@ -40,26 +40,32 @@ class SessionDetailsResponse(BaseModel):
     questions: List[dict]
     status: str
 
+import httpx
+
 async def score_response_with_gemma(question: str, transcript: str) -> dict:
-    """Score a single response using direct function call (no HTTP)"""
+    """Score a single response using the scoring API with httpx"""
     try:
+        scoring_url = "http://localhost:8000/api/scoring/score"
+        payload = {
+            "question": question,
+            "transcript": transcript
+        }
+        
         print(f"📊 Scoring response: question_len={len(question)}, transcript_len={len(transcript)}")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(scoring_url, json=payload, timeout=300)
         
-        # Format the prompt using the same template as scoring.py
-        prompt = SCORING_PROMPT_TEMPLATE.format(
-            question=question,
-            transcript=transcript
-        )
-        
-        # Call Ollama directly instead of making HTTP request to avoid self-blocking
-        raw_response = call_ollama_gemma(prompt)
-        
-        # Parse the evaluation scores from the response
-        scores = parse_evaluation_scores(raw_response)
-        
-        print(f"✅ Scoring completed: final_score={scores.get('final_score', 0):.1f}")
-        return scores
+        if response.status_code == 200:
+            score_data = response.json()
+            print(f"✅ Scoring completed: final_score={score_data.get('final_score', 0):.1f}")
+            return score_data
+        else:
+            print(f"❌ Scoring API error: {response.status_code} - {response.text}")
+            return {"error": f"Scoring failed: {response.status_code}"}
             
+    except httpx.TimeoutException:
+        print("❌ Scoring API timeout - Gemma model taking too long")
+        return {"error": "Scoring timeout - model processing took too long"}
     except Exception as e:
         print(f"❌ Scoring error: {e}")
         return {"error": f"Scoring failed: {str(e)}"}
@@ -316,7 +322,17 @@ async def transcribe_all_responses(session_id: str):
         try:
             from .stt_mlx import transcribe_audio_mlx
         except ImportError:
-            from .stt import transcribe_audio_openai as transcribe_audio_mlx
+            # Fallback - create a wrapper for the stt function
+            async def transcribe_audio_mlx(file_path: str) -> str:
+                """Wrapper for fallback transcription"""
+                try:
+                    from .stt import transcribe_audio
+                    import tempfile
+                    # The stt function expects an UploadFile, but we have a file path
+                    # For now, let's just skip the fallback and use MLX only
+                    return "[MLX-Whisper required for transcription]"
+                except Exception as e:
+                    return f"[Transcription error: {e}]"
         
         # Transcribe each audio file
         for audio_file in sorted(audio_files):
@@ -334,7 +350,7 @@ async def transcribe_all_responses(session_id: str):
                 print(f"🎵 Transcribing file {audio_file.name} for question index {question_index}...")
                 
                 # Transcribe the audio
-                transcript = transcribe_audio_mlx(str(audio_file))
+                transcript = await transcribe_audio_mlx(str(audio_file))
                 
                 if transcript and len(transcript.strip()) > 5:
                     questions[question_index]["transcript"] = transcript

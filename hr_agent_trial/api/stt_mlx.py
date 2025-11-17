@@ -7,7 +7,7 @@ import time
 import subprocess
 import shutil
 from typing import Optional, List, Dict, Any
-from hr_agent.config import settings
+from hr_agent_trial.config import settings
 import math
 
 router = APIRouter()

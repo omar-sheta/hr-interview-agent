@@ -6,9 +6,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.responses import FileResponse
 
-from hr_agent.config import settings
-from hr_agent.api import interviews, questions, health, tts, stt_mlx, scoring
-from hr_agent import models
+from hr_agent_trial.config import settings
+from hr_agent_trial.api import interviews, questions, health, tts, stt_mlx, scoring
+from hr_agent_trial import models
 
 # Ensure ffmpeg and other Homebrew tools are available
 os.environ["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + os.environ.get("PATH", "")

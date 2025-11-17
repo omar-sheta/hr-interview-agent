@@ -30,14 +30,14 @@ import uvicorn
 # Add parent directory to path to import existing modules
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from hr_agent.api.stt_mlx import transcribe_audio_mlx
-from hr_agent.api.tts import (
+from hr_agent_trial.api.stt_mlx import transcribe_audio_mlx
+from hr_agent_trial.api.tts import (
     get_piper_voice,
     _prepare_text,
     _load_voice_metadata,
     _synthesize_to_wav_bytes,
 )
-from hr_agent.config import settings
+from hr_agent_trial.config import settings
 from data_manager import data_manager
 
 app = FastAPI(

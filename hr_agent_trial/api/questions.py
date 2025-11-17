@@ -4,7 +4,7 @@ from typing import List, Optional
 import requests
 from datetime import datetime
 
-from hr_agent.config import settings
+from hr_agent_trial.config import settings
 
 router = APIRouter()
 

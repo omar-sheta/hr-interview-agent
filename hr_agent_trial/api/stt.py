@@ -4,7 +4,7 @@ import whisper
 import tempfile
 import os
 import torch
-from hr_agent.config import settings
+from hr_agent_trial.config import settings
 
 router = APIRouter()
 

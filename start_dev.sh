@@ -101,8 +101,9 @@ start_services() {
     echo "Starting backend server..."
     (
         cd "$ROOT_DIR" || exit
+        source venv/bin/activate
         uvicorn hr_agent.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir hr_agent
-    ) > >(tee -a "$LOG_FILE") 2>&1 &
+    ) > >(tee -a "$LOG_FILE" 2>/dev/null || cat) 2>&1 &
     BACKEND_PID=$!
     echo "Backend server started with PID $BACKEND_PID"
 
