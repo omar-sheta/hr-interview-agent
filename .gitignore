@@ -123,3 +123,9 @@ coverage.xml
 # Local configuration
 config.local.py
 settings.local.py
+# Ignore server trial/demo data and trial directories
+client_server_trial/
+client_server/
+client_server_demo_ready/server/data/
+client_server_trial/server/data/
+client_server/server/data/
