@@ -1,0 +1,44 @@
+{
+  "candidate_name": "omar",
+  "job_role": "Backend Engineer",
+  "job_description": "Evaluate backend fundamentals and systems thinking.",
+  "questions": [
+    "Describe a time you had to debug a complex issue in a production backend system?",
+    "How do you approach designing a scalable API for a high-traffic application?",
+    "Explain your experience with different database technologies and when you would choose one over another?"
+  ],
+  "current_question": 3,
+  "status": "completed",
+  "question_source": "ollama",
+  "used_fallback": false,
+  "responses": [
+    {
+      "question_index": 0,
+      "transcript_id": "325e8ce1-d257-4f99-a384-5dff83176342_0_1763409954",
+      "submitted_at": "2025-11-17T15:05:56.456812"
+    },
+    {
+      "question_index": 1,
+      "transcript_id": "325e8ce1-d257-4f99-a384-5dff83176342_1_1763409961",
+      "submitted_at": "2025-11-17T15:06:17.683886"
+    },
+    {
+      "question_index": 2,
+      "transcript_id": "325e8ce1-d257-4f99-a384-5dff83176342_2_1763409978",
+      "submitted_at": "2025-11-17T15:06:18.589419"
+    }
+  ],
+  "session_id": "325e8ce1-d257-4f99-a384-5dff83176342",
+  "created_at": "2025-11-17T15:05:34.372695",
+  "updated_at": "2025-11-17T15:06:18.590243",
+  "candidate_id": "candidate-1",
+  "candidate_username": "omar",
+  "interview_id": "int-1",
+  "interview_title": "Backend Engineer Screen",
+  "interview_description": "30-minute HR + technical screening focusing on APIs and ownership.",
+  "interview_config": {
+    "job_role": "Backend Engineer",
+    "job_description": "Evaluate backend fundamentals and systems thinking.",
+    "num_questions": 3
+  }
+}

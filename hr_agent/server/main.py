@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import requests
-from fastapi import FastAPI, HTTPException, Form
+from fastapi import FastAPI, HTTPException, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -437,6 +437,58 @@ class InterviewSubmitRequest(BaseModel):
     question_index: int
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class CandidateInterviewStartRequest(BaseModel):
+    candidate_id: str
+
+
+class AdminInterviewCreateRequest(BaseModel):
+    admin_id: str
+    title: str
+    description: Optional[str] = None
+    config: Dict[str, Any] = {}
+    allowed_candidate_ids: List[str] = []
+    active: bool = True
+
+
+class AdminInterviewUpdateRequest(BaseModel):
+    admin_id: str
+    title: Optional[str] = None
+    description: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+    allowed_candidate_ids: Optional[List[str]] = None
+    active: Optional[bool] = None
+
+
+def _normalize_ids(values: Optional[List[Any]]) -> List[str]:
+    if not values:
+        return []
+    return [str(value) for value in values]
+
+
+def _require_user(user_id: str, expected_role: Optional[str] = None) -> Dict[str, Any]:
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    user = data_manager.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if expected_role and user.get("role") != expected_role:
+        raise HTTPException(status_code=403, detail="User is not authorized for this action")
+    return user
+
+
+def _require_admin(user_id: str) -> Dict[str, Any]:
+    return _require_user(user_id, expected_role="admin")
+
+
+def _require_candidate(user_id: str) -> Dict[str, Any]:
+    return _require_user(user_id, expected_role="candidate")
+
+
 # Health Check
 @app.get("/health")
 async def health_check():
@@ -458,6 +510,221 @@ async def health_check():
         },
         **llm_status,
     }
+
+
+@app.post("/api/login")
+async def login(request: LoginRequest):
+    """Simple username/password login backed by users.json."""
+    user = data_manager.get_user_by_username(request.username)
+    if not user or user.get("password") != request.password:
+        return {"success": False, "message": "Invalid credentials"}
+    
+    return {
+        "success": True,
+        "user_id": user.get("id"),
+        "role": user.get("role"),
+        "username": user.get("username"),
+        "message": "Login successful"
+    }
+
+
+@app.post("/api/logout")
+async def logout():
+    """Client-driven logout placeholder (no server-side session)."""
+    return {"success": True, "message": "Logged out"}
+
+
+@app.get("/api/candidate/interviews")
+async def list_candidate_interviews(candidate_id: str = Query(..., description="Candidate user id")):
+    """Return active interviews a candidate is allowed to access."""
+    candidate = _require_candidate(candidate_id)
+    completed_ids = {
+        str(result.get("interview_id"))
+        for result in data_manager.load_results()
+        if str(result.get("candidate_id")) == str(candidate["id"])
+    }
+    allowed_interviews = []
+    for interview in data_manager.load_interviews():
+        candidate_ids = _normalize_ids(interview.get("allowed_candidate_ids"))
+        if (
+            interview.get("active")
+            and str(candidate["id"]) in candidate_ids
+            and str(interview.get("id")) not in completed_ids
+        ):
+            allowed_interviews.append(interview)
+    return {"interviews": allowed_interviews}
+
+
+@app.post("/api/candidate/interviews/{interview_id}/start")
+async def start_candidate_interview(interview_id: str, request: CandidateInterviewStartRequest):
+    """Kick off an interview session that is tied to a candidate and interview record."""
+    candidate = _require_candidate(request.candidate_id)
+    for result in data_manager.load_results():
+        if (
+            str(result.get("candidate_id")) == str(candidate.get("id"))
+            and str(result.get("interview_id")) == str(interview_id)
+        ):
+            raise HTTPException(status_code=400, detail="Interview already completed.")
+    interview = data_manager.get_interview(interview_id)
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    if not interview.get("active", False):
+        raise HTTPException(status_code=400, detail="Interview is not active")
+    candidate_ids = _normalize_ids(interview.get("allowed_candidate_ids"))
+    if str(candidate["id"]) not in candidate_ids:
+        raise HTTPException(status_code=403, detail="Candidate is not allowed for this interview")
+
+    config = interview.get("config") or {}
+    start_request = InterviewStartRequest(
+        candidate_name=candidate.get("username"),
+        job_role=config.get("job_role") or interview.get("title"),
+        job_description=config.get("job_description") or interview.get("description"),
+        num_questions=config.get("num_questions") or len(config.get("questions") or []) or 3,
+        questions=config.get("questions")
+    )
+    session_payload = await start_interview(start_request)
+    metadata = {
+        "candidate_id": candidate.get("id"),
+        "candidate_username": candidate.get("username"),
+        "interview_id": interview.get("id"),
+        "interview_title": interview.get("title"),
+        "interview_description": interview.get("description"),
+        "interview_config": config,
+    }
+    data_manager.update_session(session_payload["session_id"], metadata)
+
+    return {
+        "success": True,
+        "session": session_payload,
+        "interview": {
+            "id": interview.get("id"),
+            "title": interview.get("title"),
+            "description": interview.get("description"),
+            "config": config
+        }
+    }
+
+
+@app.get("/api/candidate/results")
+async def list_candidate_results(candidate_id: str = Query(..., description="Candidate user id")):
+    """Allow candidates to check which interviews they have completed."""
+    candidate = _require_candidate(candidate_id)
+    candidate_results = [
+        result for result in data_manager.load_results()
+        if str(result.get("candidate_id")) == str(candidate.get("id"))
+    ]
+    return {"results": candidate_results}
+
+
+@app.get("/api/admin/interviews")
+async def list_admin_interviews(admin_id: str = Query(..., description="Admin user id")):
+    """List all interviews for the admin dashboard."""
+    _require_admin(admin_id)
+    return {"interviews": data_manager.load_interviews()}
+
+
+@app.post("/api/admin/interviews")
+async def create_admin_interview(request: AdminInterviewCreateRequest):
+    """Create a new interview definition."""
+    _require_admin(request.admin_id)
+    interviews = data_manager.load_interviews()
+    new_interview = {
+        "id": f"int-{uuid.uuid4()}",
+        "title": request.title,
+        "description": request.description,
+        "config": request.config or {},
+        "allowed_candidate_ids": _normalize_ids(request.allowed_candidate_ids),
+        "active": bool(request.active),
+        "created_by": request.admin_id,
+        "created_at": datetime.now().isoformat(),
+    }
+    interviews.append(new_interview)
+    data_manager.save_interviews(interviews)
+    return {"interview": new_interview}
+
+
+@app.put("/api/admin/interviews/{interview_id}")
+async def update_admin_interview(interview_id: str, request: AdminInterviewUpdateRequest):
+    """Update interview details."""
+    _require_admin(request.admin_id)
+    interviews = data_manager.load_interviews()
+    updated = None
+    for idx, interview in enumerate(interviews):
+        if str(interview.get("id")) == str(interview_id):
+            updated = dict(interview)
+            if request.title is not None:
+                updated["title"] = request.title
+            if request.description is not None:
+                updated["description"] = request.description
+            if request.config is not None:
+                updated["config"] = request.config
+            if request.allowed_candidate_ids is not None:
+                updated["allowed_candidate_ids"] = _normalize_ids(request.allowed_candidate_ids)
+            if request.active is not None:
+                updated["active"] = bool(request.active)
+            updated["updated_at"] = datetime.now().isoformat()
+            interviews[idx] = updated
+            break
+    if not updated:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    data_manager.save_interviews(interviews)
+    return {"interview": updated}
+
+
+@app.get("/api/admin/interviews/{interview_id}/results")
+async def get_admin_interview_results(
+    interview_id: str,
+    admin_id: str = Query(..., description="Admin user id"),
+):
+    """Return results for a specific interview."""
+    _require_admin(admin_id)
+    results = [
+        result for result in data_manager.load_results()
+        if str(result.get("interview_id")) == str(interview_id)
+    ]
+    return {"results": results}
+
+
+@app.get("/api/admin/results")
+async def list_admin_results(
+    admin_id: str = Query(..., description="Admin user id"),
+    candidate_id: Optional[str] = Query(None),
+    interview_id: Optional[str] = Query(None),
+):
+    """Return all completed interview results with optional filtering."""
+    _require_admin(admin_id)
+    results = data_manager.load_results()
+    if candidate_id:
+        results = [r for r in results if str(r.get("candidate_id")) == str(candidate_id)]
+    if interview_id:
+        results = [r for r in results if str(r.get("interview_id")) == str(interview_id)]
+    return {"results": results}
+
+
+@app.put("/api/admin/results/{session_id}")
+async def update_admin_result(
+    session_id: str,
+    admin_id: str = Query(..., description="Admin user id"),
+    status: str = Query(..., description="Status label e.g., pending/rejected/accepted"),
+    result_id: Optional[str] = Query(None, description="Optional result id"),
+):
+    """Allow admins to update the review status of a completed interview."""
+    _require_admin(admin_id)
+    if status not in {"pending", "rejected", "accepted"}:
+        raise HTTPException(status_code=400, detail="Invalid status value")
+    results = data_manager.load_results()
+    target_index = None
+    for index, result in enumerate(results):
+        if result.get("session_id") == session_id or (
+            result_id and result.get("id") == result_id
+        ):
+            target_index = index
+            break
+    if target_index is None:
+        raise HTTPException(status_code=404, detail="Result not found")
+    results[target_index]["status"] = status
+    data_manager.save_results(results)
+    return {"session_id": session_id, "status": status}
 
 
 # Text-to-Speech Endpoint  
@@ -857,6 +1124,7 @@ Areas for improvement: [areas to improve]"""
         total_score += score
     
     average_score = total_score / len(scored_responses) if scored_responses else 0
+    _persist_completed_session(session_id, session, scored_responses, average_score)
     
     return {
         "session_id": session_id,
@@ -868,6 +1136,50 @@ Areas for improvement: [areas to improve]"""
         "responses": scored_responses,
         "summary": f"Interview completed with average score of {average_score:.1f}/10"
     }
+
+
+def _persist_completed_session(session_id: str, session: Dict[str, Any], scored_responses: List[Dict[str, Any]], average_score: float) -> None:
+    """Persist results so the admin dashboard can retrieve them later."""
+    answers = []
+    feedback = []
+    for response in scored_responses:
+        answers.append({
+            "question_index": response.get("question_index"),
+            "question": response.get("question"),
+            "transcript": response.get("transcript"),
+            "transcript_id": response.get("transcript_id"),
+        })
+        feedback.append({
+            "question_index": response.get("question_index"),
+            "feedback": response.get("feedback"),
+            "strengths": response.get("strengths"),
+            "areas_for_improvement": response.get("areas_for_improvement"),
+            "score": response.get("score"),
+        })
+
+    record = {
+        "session_id": session_id,
+        "candidate_id": session.get("candidate_id"),
+        "candidate_username": session.get("candidate_username"),
+        "interview_id": session.get("interview_id"),
+        "interview_title": session.get("interview_title"),
+        "timestamp": datetime.now().isoformat(),
+        "answers": answers,
+        "feedback": feedback,
+        "scores": {
+            "average": round(average_score, 1),
+            "details": [
+                {
+                    "question_index": response.get("question_index"),
+                    "score": response.get("score"),
+                }
+                for response in scored_responses
+            ],
+        },
+        "summary": f"Interview completed with average score of {average_score:.1f}/10",
+        "status": "pending",
+    }
+    data_manager.upsert_result(session_id, record)
 
 
 if __name__ == "__main__":

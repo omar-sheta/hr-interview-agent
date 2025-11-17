@@ -1,0 +1,55 @@
+import { Routes, Route, Navigate } from 'react-router-dom';
+import LoginPage from './pages/LoginPage.jsx';
+import CandidateDashboard from './pages/CandidateDashboard.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
+import AdminResultsPage from './pages/AdminResultsPage.jsx';
+import InterviewPage from './pages/InterviewPage.jsx';
+import NotFound from './pages/NotFound.jsx';
+import LogoutPage from './pages/LogoutPage.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/candidate"
+        element={(
+          <ProtectedRoute allowedRoles={['candidate']}>
+            <CandidateDashboard />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/candidate/interview"
+        element={(
+          <ProtectedRoute allowedRoles={['candidate']}>
+            <InterviewPage />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/admin"
+        element={(
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/admin/results"
+        element={(
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminResultsPage />
+          </ProtectedRoute>
+        )}
+      />
+      <Route path="/logout" element={<LogoutPage />} />
+      <Route path="/unauthorized" element={<NotFound />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
+export default App;

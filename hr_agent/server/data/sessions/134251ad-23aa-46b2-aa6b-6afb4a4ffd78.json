@@ -1,0 +1,28 @@
+{
+  "candidate_name": "omar",
+  "job_role": "Backend Engineer",
+  "job_description": "Evaluate backend fundamentals and systems thinking.",
+  "questions": [
+    "Describe a time you designed a system to handle a significant increase in user traffic?",
+    "How do you approach debugging a performance bottleneck in a distributed system?",
+    "Explain your experience with different database technologies and when you would choose one over another?"
+  ],
+  "current_question": 0,
+  "status": "active",
+  "question_source": "ollama",
+  "used_fallback": false,
+  "responses": [],
+  "session_id": "134251ad-23aa-46b2-aa6b-6afb4a4ffd78",
+  "created_at": "2025-11-17T15:50:14.487440",
+  "updated_at": "2025-11-17T15:50:14.487986",
+  "candidate_id": "candidate-1",
+  "candidate_username": "omar",
+  "interview_id": "int-1",
+  "interview_title": "Backend Engineer Screen",
+  "interview_description": "30-minute HR + technical screening focusing on APIs and ownership.",
+  "interview_config": {
+    "job_role": "Backend Engineer",
+    "job_description": "Evaluate backend fundamentals and systems thinking.",
+    "num_questions": 3
+  }
+}

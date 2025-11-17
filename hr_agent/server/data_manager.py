@@ -22,10 +22,105 @@ class DataManager:
         self.sessions_path = self.base_path / "sessions"
         self.transcripts_path = self.base_path / "transcripts"  
         self.audio_path = self.base_path / "audio"
+        self.users_file = self.base_path / "users.json"
+        self.interviews_file = self.base_path / "interviews.json"
+        self.results_file = self.base_path / "results.json"
         
         # Ensure directories exist
         for path in [self.sessions_path, self.transcripts_path, self.audio_path]:
             path.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure JSON stores exist
+        for json_file in [self.users_file, self.interviews_file, self.results_file]:
+            if not json_file.exists():
+                json_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(json_file, "w") as handle:
+                    json.dump([], handle, indent=2)
+
+    # ------------------------------------------------------------------
+    # JSON helpers for lightweight persistence
+    # ------------------------------------------------------------------
+    def _load_json_list(self, file_path: Path) -> List[Dict[str, Any]]:
+        try:
+            with open(file_path, "r") as handle:
+                data = json.load(handle)
+                if isinstance(data, list):
+                    return data
+                return []
+        except FileNotFoundError:
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(file_path, "w") as handle:
+                json.dump([], handle)
+            return []
+        except json.JSONDecodeError:
+            # Reset corrupted file
+            with open(file_path, "w") as handle:
+                json.dump([], handle)
+            return []
+
+    def _save_json_list(self, file_path: Path, payload: List[Dict[str, Any]]) -> None:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(file_path, "w") as handle:
+            json.dump(payload, handle, indent=2)
+
+    # Users ----------------------------------------------------------------
+    def load_users(self) -> List[Dict[str, Any]]:
+        return self._load_json_list(self.users_file)
+
+    def save_users(self, users: List[Dict[str, Any]]) -> None:
+        self._save_json_list(self.users_file, users)
+
+    def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        for user in self.load_users():
+            if str(user.get("id")) == str(user_id):
+                return user
+        return None
+
+    def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
+        username = username.lower()
+        for user in self.load_users():
+            if str(user.get("username", "")).lower() == username:
+                return user
+        return None
+
+    # Interviews ------------------------------------------------------------
+    def load_interviews(self) -> List[Dict[str, Any]]:
+        return self._load_json_list(self.interviews_file)
+
+    def save_interviews(self, interviews: List[Dict[str, Any]]) -> None:
+        self._save_json_list(self.interviews_file, interviews)
+
+    def get_interview(self, interview_id: str) -> Optional[Dict[str, Any]]:
+        for interview in self.load_interviews():
+            if str(interview.get("id")) == str(interview_id):
+                return interview
+        return None
+
+    # Results ---------------------------------------------------------------
+    def load_results(self) -> List[Dict[str, Any]]:
+        return self._load_json_list(self.results_file)
+
+    def save_results(self, results: List[Dict[str, Any]]) -> None:
+        self._save_json_list(self.results_file, results)
+
+    def upsert_result(self, session_id: str, record: Dict[str, Any]) -> Dict[str, Any]:
+        """Insert or update a result record keyed by session_id."""
+        results = self.load_results()
+        existing_index = None
+        for index, entry in enumerate(results):
+            if entry.get("session_id") == session_id:
+                existing_index = index
+                break
+
+        if existing_index is not None:
+            merged = {**results[existing_index], **record}
+            results[existing_index] = merged
+        else:
+            record.setdefault("id", str(uuid.uuid4()))
+            record.setdefault("status", "pending")
+            results.append(record)
+        self.save_results(results)
+        return record
     
     # Session Management
     def create_session(self, session_data: Dict[str, Any]) -> str:

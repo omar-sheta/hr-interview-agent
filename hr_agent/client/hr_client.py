@@ -1,247 +1,175 @@
-"""
-HR Interview Agent - Python Client
+"""Utility client for interacting with the HR Interview Agent API."""
 
-A simple Python client to interact with the HR Interview Agent server.
-Provides a clean API for client applications.
-"""
+from __future__ import annotations
 
-import requests
+import argparse
+import io
 import json
 import os
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-import io
+from typing import Any, Dict, Optional
+
+import requests
 
 
 class HRInterviewClient:
-    """Python client for HR Interview Agent server."""
-    
-    def __init__(self, server_url: str = "http://localhost:8001"):
-        """Initialize client with server URL."""
-        self.base_url = server_url.rstrip("/")
-        self.session = requests.Session()
-    
-    def health_check(self) -> Dict[str, Any]:
-        """Check server health status."""
-        try:
-            response = self.session.get(f"{self.base_url}/health")
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            return {"status": "error", "message": str(e)}
-    
-    def transcribe_audio(self, audio_file_path: str, detailed: bool = False) -> Dict[str, Any]:
-        """Transcribe audio file to text."""
-        try:
-            with open(audio_file_path, 'rb') as audio_file:
-                files = {'audio': (os.path.basename(audio_file_path), audio_file, 'audio/wav')}
-                data = {'detailed': detailed}
-                
-                response = self.session.post(
-                    f"{self.base_url}/transcribe",
-                    files=files,
-                    data=data
-                )
-                response.raise_for_status()
-                return response.json()
-        except (requests.RequestException, FileNotFoundError) as e:
-            return {"error": str(e)}
-    
-    def transcribe_audio_bytes(self, audio_bytes: bytes, filename: str = "audio.wav", detailed: bool = False) -> Dict[str, Any]:
-        """Transcribe audio bytes to text."""
-        try:
-            files = {'audio': (filename, io.BytesIO(audio_bytes), 'audio/wav')}
-            data = {'detailed': detailed}
-            
-            response = self.session.post(
-                f"{self.base_url}/transcribe",
-                files=files,
-                data=data
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            return {"error": str(e)}
-    
-    def synthesize_speech(self, text: str, voice: str = "en_US-amy-medium") -> bytes:
-        """Synthesize text to speech and return audio bytes."""
-        try:
-            response = self.session.post(
-                f"{self.base_url}/synthesize",
-                json={"text": text, "voice": voice}
-            )
-            response.raise_for_status()
-            return response.content
-        except requests.RequestException as e:
-            raise Exception(f"Speech synthesis failed: {e}")
-    
-    def generate_text(
-        self,
-        messages: List[Dict[str, str]],
-        model: str = "gemma3:27b",
-        temperature: float = 0.7,
-        max_tokens: int = 1000,
-        prompt: Optional[str] = None,
-        job_description: Optional[str] = None,
-        job_role: Optional[str] = None,
-        num_questions: Optional[int] = None,
-    ) -> Dict[str, Any]:
-        """Generate text/questions using LLM with optional job context."""
-        try:
-            payload: Dict[str, Any] = {
-                "messages": messages,
-                "model": model,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-            }
+  """Thin wrapper around the FastAPI endpoints used by the interview workspace."""
 
-            if prompt:
-                payload["prompt"] = prompt
-            if job_description:
-                payload["job_description"] = job_description
-            if job_role:
-                payload["job_role"] = job_role
-            if num_questions is not None:
-                payload["num_questions"] = num_questions
+  def __init__(self, server_url: str = "http://localhost:8001") -> None:
+    self.base_url = server_url.rstrip('/')
+    self.session = requests.Session()
 
-            response = self.session.post(
-                f"{self.base_url}/generate",
-                json=payload
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            return {"error": str(e)}
-    
-    def start_interview(self, candidate_name: Optional[str] = None, 
-                       job_role: Optional[str] = None, num_questions: int = 3) -> Dict[str, Any]:
-        """Start a new interview session."""
-        try:
-            response = self.session.post(
-                f"{self.base_url}/interview/start",
-                json={
-                    "candidate_name": candidate_name,
-                    "job_role": job_role,
-                    "num_questions": num_questions
-                }
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            return {"error": str(e)}
-    
-    def get_interview_session(self, session_id: str) -> Dict[str, Any]:
-        """Get interview session details."""
-        try:
-            response = self.session.get(f"{self.base_url}/interview/{session_id}")
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            return {"error": str(e)}
-    
-    def submit_response(self, session_id: str, question_index: int, audio_file_path: str) -> Dict[str, Any]:
-        """Submit interview response with audio file."""
-        try:
-            with open(audio_file_path, 'rb') as audio_file:
-                files = {'audio': (os.path.basename(audio_file_path), audio_file, 'audio/wav')}
-                data = {
-                    'session_id': session_id,
-                    'question_index': question_index
-                }
-                
-                response = self.session.post(
-                    f"{self.base_url}/interview/submit",
-                    files=files,
-                    data=data
-                )
-                response.raise_for_status()
-                return response.json()
-        except (requests.RequestException, FileNotFoundError) as e:
-            return {"error": str(e)}
-    
-    def submit_response_bytes(self, session_id: str, question_index: int, 
-                            audio_bytes: bytes, filename: str = "response.wav") -> Dict[str, Any]:
-        """Submit interview response with audio bytes."""
-        try:
-            files = {'audio': (filename, io.BytesIO(audio_bytes), 'audio/wav')}
-            data = {
-                'session_id': session_id,
-                'question_index': question_index
-            }
-            
-            response = self.session.post(
-                f"{self.base_url}/interview/submit",
-                files=files,
-                data=data
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            return {"error": str(e)}
-    
-    def get_interview_results(self, session_id: str) -> Dict[str, Any]:
-        """Get interview results and scoring."""
-        try:
-            response = self.session.get(f"{self.base_url}/interview/{session_id}/results")
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            return {"error": str(e)}
+  # ------------------------------------------------------------------
+  # Health & metadata
+  # ------------------------------------------------------------------
+  def health_check(self) -> Dict[str, Any]:
+    response = self.session.get(self._url('/health'))
+    response.raise_for_status()
+    return response.json()
 
+  def list_candidate_interviews(self, candidate_id: str) -> Dict[str, Any]:
+    response = self.session.get(self._url('/api/candidate/interviews'), params={'candidate_id': candidate_id})
+    response.raise_for_status()
+    return response.json()
 
-# Convenience functions for quick usage
-def quick_transcribe(audio_file_path: str, server_url: str = "http://localhost:8001") -> str:
-    """Quick transcription of an audio file."""
-    client = HRInterviewClient(server_url)
-    result = client.transcribe_audio(audio_file_path)
-    return result.get("transcript", "")
-
-
-def quick_synthesize(text: str, output_file: str, server_url: str = "http://localhost:8001"):
-    """Quick synthesis of text to audio file."""
-    client = HRInterviewClient(server_url)
-    audio_bytes = client.synthesize_speech(text)
-    with open(output_file, 'wb') as f:
-        f.write(audio_bytes)
-
-
-def quick_chat(message: str, server_url: str = "http://localhost:8001") -> str:
-    """Quick chat with the LLM."""
-    client = HRInterviewClient(server_url)
-    result = client.generate_text([{"role": "user", "content": message}])
-    return result.get("content", "")
-
-
-# Example usage
-if __name__ == "__main__":
-    # Initialize client
-    client = HRInterviewClient()
-    
-    # Check server health
-    health = client.health_check()
-    print("Server Health:", health)
-    
-    # Example: Start an interview
-    interview = client.start_interview(
-        candidate_name="John Doe",
-        job_role="Python Developer",
-        num_questions=2
+  # ------------------------------------------------------------------
+  # Interview lifecycle
+  # ------------------------------------------------------------------
+  def start_candidate_interview(self, interview_id: str, candidate_id: str) -> Dict[str, Any]:
+    response = self.session.post(
+      self._url(f'/api/candidate/interviews/{interview_id}/start'),
+      json={'candidate_id': candidate_id},
     )
-    
-    if "session_id" in interview:
-        print(f"Interview started: {interview['session_id']}")
-        print("Questions:")
-        for i, question in enumerate(interview['questions']):
-            print(f"{i+1}. {question}")
+    response.raise_for_status()
+    return response.json()
+
+  def start_ad_hoc_interview(self, candidate_name: Optional[str], job_role: Optional[str], num_questions: int = 3) -> Dict[str, Any]:
+    response = self.session.post(
+      self._url('/interview/start'),
+      json={'candidate_name': candidate_name, 'job_role': job_role, 'num_questions': num_questions},
+    )
+    response.raise_for_status()
+    return response.json()
+
+  def get_interview_session(self, session_id: str) -> Dict[str, Any]:
+    response = self.session.get(self._url(f'/interview/{session_id}'))
+    response.raise_for_status()
+    return response.json()
+
+  def get_interview_results(self, session_id: str) -> Dict[str, Any]:
+    response = self.session.get(self._url(f'/interview/{session_id}/results'))
+    response.raise_for_status()
+    return response.json()
+
+  # ------------------------------------------------------------------
+  # Audio / Transcript helpers
+  # ------------------------------------------------------------------
+  def transcribe_audio(self, audio_path: str, *, session_id: Optional[str] = None, question_index: Optional[int] = None) -> Dict[str, Any]:
+    with open(audio_path, 'rb') as audio_file:
+      files = {'audio': (os.path.basename(audio_path), audio_file, 'audio/wav')}
+      data: Dict[str, Any] = {}
+      if session_id is not None and question_index is not None:
+        data.update({'session_id': session_id, 'question_index': question_index})
+      response = self.session.post(self._url('/transcribe'), files=files, data=data)
+      response.raise_for_status()
+      return response.json()
+
+  def transcribe_audio_bytes(self, audio_bytes: bytes, *, filename: str = 'audio.wav', session_id: Optional[str] = None, question_index: Optional[int] = None) -> Dict[str, Any]:
+    files = {'audio': (filename, io.BytesIO(audio_bytes), 'audio/wav')}
+    data: Dict[str, Any] = {}
+    if session_id is not None and question_index is not None:
+      data.update({'session_id': session_id, 'question_index': question_index})
+    response = self.session.post(self._url('/transcribe'), files=files, data=data)
+    response.raise_for_status()
+    return response.json()
+
+  def submit_transcript(self, session_id: str, question_index: int, transcript_id: Optional[str]) -> Dict[str, Any]:
+    form = {'session_id': session_id, 'question_index': question_index}
+    if transcript_id:
+      form['transcript_id'] = transcript_id
+    response = self.session.post(self._url('/interview/submit'), data=form)
+    response.raise_for_status()
+    return response.json()
+
+  def submit_audio_answer(self, session_id: str, question_index: int, audio_path: str) -> Dict[str, Any]:
+    transcription = self.transcribe_audio(audio_path, session_id=session_id, question_index=question_index)
+    transcript_id = transcription.get('transcript_id')
+    return {
+      'transcription': transcription,
+      'submission': self.submit_transcript(session_id, question_index, transcript_id),
+    }
+
+  # ------------------------------------------------------------------
+  def _url(self, path: str) -> str:
+    return f"{self.base_url}{path}" if path.startswith('/') else f"{self.base_url}/{path}"
+
+
+# ----------------------------------------------------------------------
+# CLI utilities
+# ----------------------------------------------------------------------
+
+def build_parser() -> argparse.ArgumentParser:
+  parser = argparse.ArgumentParser(description='Debug client for the HR Interview Agent API')
+  parser.add_argument('--api-host', default='127.0.0.1')
+  parser.add_argument('--api-port', type=int, default=8001)
+  subparsers = parser.add_subparsers(dest='command', required=True)
+
+  start = subparsers.add_parser('start', help='Start an interview assignment for a candidate')
+  start.add_argument('--candidate-id', required=True)
+  start.add_argument('--interview-id', required=True)
+
+  assignments = subparsers.add_parser('assignments', help='List interviews available to a candidate')
+  assignments.add_argument('--candidate-id', required=True)
+
+  session = subparsers.add_parser('session', help='Show session metadata and questions')
+  session.add_argument('--session-id', required=True)
+
+  submit = subparsers.add_parser('submit', help='Transcribe & submit an audio answer for a question')
+  submit.add_argument('--session-id', required=True)
+  submit.add_argument('--question-index', type=int, required=True)
+  submit.add_argument('--audio', required=True, help='Path to the audio file to upload')
+
+  results = subparsers.add_parser('results', help='Fetch scored results for a completed session')
+  results.add_argument('--session-id', required=True)
+
+  return parser
+
+
+def pretty_print(payload: Dict[str, Any]) -> None:
+  print(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def run_cli() -> None:
+  parser = build_parser()
+  args = parser.parse_args()
+  base_url = f"http://{args.api_host}:{args.api_port}"
+  client = HRInterviewClient(base_url)
+
+  try:
+    if args.command == 'start':
+      data = client.start_candidate_interview(args.interview_id, args.candidate_id)
+      pretty_print(data)
+    elif args.command == 'assignments':
+      data = client.list_candidate_interviews(args.candidate_id)
+      pretty_print(data)
+    elif args.command == 'session':
+      data = client.get_interview_session(args.session_id)
+      pretty_print(data)
+    elif args.command == 'submit':
+      data = client.submit_audio_answer(args.session_id, args.question_index, args.audio)
+      pretty_print(data)
+    elif args.command == 'results':
+      data = client.get_interview_results(args.session_id)
+      pretty_print(data)
     else:
-        print("Failed to start interview:", interview.get("error"))
-    
-    # Example: Generate some text
-    chat_result = client.generate_text([
-        {"role": "user", "content": "What makes a good software developer?"}
-    ])
-    
-    if "content" in chat_result:
-        print("\nLLM Response:", chat_result["content"])
-    else:
-        print("LLM failed:", chat_result.get("error"))
+      parser.error('Unknown command specified')
+  except requests.HTTPError as err:
+    print(f'API request failed: {err}')
+    if err.response is not None:
+      try:
+        print('Response:', err.response.json())
+      except Exception:
+        print('Response text:', err.response.text)
+
+
+if __name__ == '__main__':
+  run_cli()

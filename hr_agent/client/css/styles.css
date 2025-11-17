@@ -1,0 +1,192 @@
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #eef2ff, #f8fafc 60%);
+}
+
+header.workspace-header {
+  background: linear-gradient(135deg, #111b3c, #1c3faa 55%, #2563eb);
+  color: #fff;
+  padding: 1.25rem 2rem;
+  box-shadow: 0 25px 55px rgba(15, 23, 42, 0.35);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+}
+
+header.workspace-header h1 {
+  margin: 0;
+  font-size: 1.65rem;
+}
+
+header.workspace-header p {
+  margin: 0.2rem 0 0;
+  opacity: 0.85;
+}
+
+main.workspace-main {
+  width: min(1100px, 100%);
+  margin: 2rem auto;
+  padding: 0 1.5rem 2.5rem;
+}
+
+.panel {
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.08);
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.panel h2 {
+  margin-top: 0;
+  color: #0f172a;
+}
+
+#question-text {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 1rem 0 1.5rem;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  border-radius: 999px;
+  padding: 0.85rem 1.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button.primary {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #fff;
+  box-shadow: 0 15px 30px rgba(37, 99, 235, 0.35);
+}
+
+button.secondary {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  color: #0f172a;
+}
+
+button.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.status-banner {
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 500;
+}
+
+.status-banner.info {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+}
+
+.status-banner.warning {
+  background: rgba(251, 191, 36, 0.28);
+  color: #92400e;
+}
+
+.status-banner.error {
+  background: rgba(239, 68, 68, 0.25);
+  color: #991a1a;
+}
+
+.transcription-box {
+  background: #f1f5f9;
+  border-radius: 18px;
+  padding: 1.25rem;
+  min-height: 120px;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #0f172a;
+}
+
+.progress-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(15, 23, 42, 0.65);
+  font-size: 0.95rem;
+}
+
+.mic-meter {
+  margin-top: 1rem;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.mic-meter span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #fbbf24, #ef4444);
+  transition: width 90ms linear;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.upload-field {
+  margin: 1rem 0 0.5rem;
+  padding: 1.25rem;
+  border: 1px dashed rgba(15, 23, 42, 0.2);
+  border-radius: 18px;
+  text-align: center;
+}
+
+.upload-field input[type="file"] {
+  margin-top: 0.5rem;
+}
+
+.completion-card {
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.completion-card h2 {
+  font-size: 1.75rem;
+}
+
+.completion-card p {
+  color: rgba(15, 23, 42, 0.75);
+  max-width: 520px;
+  margin: 0.75rem auto;
+}

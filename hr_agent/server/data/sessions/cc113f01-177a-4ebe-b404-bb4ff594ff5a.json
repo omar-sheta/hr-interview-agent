@@ -1,0 +1,28 @@
+{
+  "candidate_name": "omar",
+  "job_role": "Backend Engineer",
+  "job_description": "Evaluate backend fundamentals and systems thinking.",
+  "questions": [
+    "Describe a time you had to debug a complex issue in a production backend system?",
+    "How do you approach designing a scalable and resilient backend architecture for a new feature?",
+    "Explain your experience with different database technologies and when you would choose one over another?"
+  ],
+  "current_question": 0,
+  "status": "active",
+  "question_source": "ollama",
+  "used_fallback": false,
+  "responses": [],
+  "session_id": "cc113f01-177a-4ebe-b404-bb4ff594ff5a",
+  "created_at": "2025-11-17T15:20:25.441868",
+  "updated_at": "2025-11-17T15:20:25.442472",
+  "candidate_id": "candidate-1",
+  "candidate_username": "omar",
+  "interview_id": "int-1",
+  "interview_title": "Backend Engineer Screen",
+  "interview_description": "30-minute HR + technical screening focusing on APIs and ownership.",
+  "interview_config": {
+    "job_role": "Backend Engineer",
+    "job_description": "Evaluate backend fundamentals and systems thinking.",
+    "num_questions": 3
+  }
+}

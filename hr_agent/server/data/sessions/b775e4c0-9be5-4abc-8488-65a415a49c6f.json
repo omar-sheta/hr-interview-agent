@@ -1,0 +1,18 @@
+{
+  "candidate_name": null,
+  "job_role": null,
+  "job_description": "Seeking a skilled factory worker or engineer to join our team at GE Appliances. The ideal candidate has experience with manufacturing processes, equipment maintenance, quality control, safety protocols, and working in a fast-paced production environment.",
+  "questions": [
+    "Describe a time you identified and resolved a problem with a piece of manufacturing equipment?",
+    "How do you prioritize tasks when faced with multiple demands in a fast-paced production environment?",
+    "Walk me through a time you improved a manufacturing process or efficiency?"
+  ],
+  "current_question": 0,
+  "status": "active",
+  "question_source": "client",
+  "used_fallback": false,
+  "responses": [],
+  "session_id": "b775e4c0-9be5-4abc-8488-65a415a49c6f",
+  "created_at": "2025-11-16T23:17:37.814994",
+  "updated_at": "2025-11-16T23:17:37.815007"
+}
