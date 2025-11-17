@@ -15,13 +15,12 @@ import logging
 import os
 import re
 import sys
-import tempfile
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import requests
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -29,22 +28,78 @@ import uvicorn
 
 # Add parent directory to path to import existing modules
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+# Also ensure the server directory is on sys.path for importing local config
+sys.path.append(os.path.dirname(__file__))
 
-from hr_agent_trial.api.stt_mlx import transcribe_audio_mlx
-from hr_agent_trial.api.tts import (
-    get_piper_voice,
-    _prepare_text,
-    _load_voice_metadata,
-    _synthesize_to_wav_bytes,
-)
-from hr_agent_trial.config import settings
-from data_manager import data_manager
+# Prefer our local `config.py` settings; fall back to _PlaceholderSettings when necessary
+try:
+    import config as local_config
+    settings = local_config.settings
+except Exception:
+    settings = None
+
+try:
+    from hr_agent.server.services import stt as stt_service
+    from hr_agent.server.services import tts as tts_service
+    from hr_agent.server.routes import stt_router
+except Exception as exc:
+    raise RuntimeError("Failed to import local speech services. Ensure hr_agent/server/services is on PYTHONPATH.") from exc
+
+get_piper_voice = tts_service.get_piper_voice
+_prepare_text = tts_service._prepare_text
+_load_voice_metadata = tts_service._load_voice_metadata
+_synthesize_to_wav_bytes = tts_service._synthesize_to_wav_bytes
+stt_available = stt_service.STT_AVAILABLE
+tts_available = tts_service.TTS_AVAILABLE
+
+if settings is None:
+    class _PlaceholderSettings:
+        OLLAMA_BASE_URL = "http://localhost:11434"
+        OLLAMA_MODEL = "gemma3:27b"
+
+    settings = _PlaceholderSettings()
+from hr_agent.server.data_manager import data_manager
+
+
+def check_ollama_available(timeout: int | float = None, retries: int | None = None, backoff: float | None = None) -> tuple[bool, str]:
+    """Probe the OLLAMA endpoint to ensure it's reachable. Returns (True, 'ok') if reachable, otherwise (False, reason)."""
+    # Use configured values if not provided
+    try:
+        probe_timeout = float(timeout or settings.OLLAMA_PROBE_TIMEOUT)
+    except Exception:
+        probe_timeout = 2.0
+    try:
+        probe_retries = int(retries or settings.OLLAMA_PROBE_RETRIES)
+    except Exception:
+        probe_retries = 3
+    try:
+        probe_backoff = float(backoff or settings.OLLAMA_PROBE_BACKOFF)
+    except Exception:
+        probe_backoff = 1.0
+
+    url = f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/version"
+    last_err = None
+    for attempt in range(probe_retries):
+        try:
+            r = requests.get(url, timeout=probe_timeout)
+            if r.status_code == 200:
+                return True, "ok"
+            return False, f"status_code={r.status_code}"
+        except Exception as e:
+            last_err = e
+            if attempt < (probe_retries - 1):
+                import time
+                time.sleep(probe_backoff)
+            continue
+    return False, str(last_err)
 
 app = FastAPI(
     title="HR Interview Agent Server",
     description="Centralized server for HR interview AI processing",
     version="1.0.0",
 )
+
+app.include_router(stt_router.router)
 
 logger = logging.getLogger("hr_interview_agent.server")
 
@@ -60,22 +115,6 @@ app.add_middleware(
 # Use persistent data manager instead of in-memory storage
 # interview_sessions: Dict[str, Dict[str, Any]] = {}  # Replaced with data_manager
 
-CONTENT_TYPE_EXTENSION_MAP = {
-    "audio/webm": ".webm",
-    "audio/webm;codecs=opus": ".webm",
-    "audio/ogg": ".ogg",
-    "audio/ogg;codecs=opus": ".ogg",
-    "audio/mp4": ".m4a",
-    "audio/mp4;codecs=mp4a.40.2": ".m4a",
-    "audio/mpeg": ".mp3",
-    "audio/wav": ".wav",
-    "audio/wave": ".wav",
-    "audio/x-wav": ".wav",
-    "audio/x-m4a": ".m4a",
-    "audio/aac": ".aac",
-}
-
-
 # ---------------------------------------------------------------------------
 # Question Generation Helpers
 # ---------------------------------------------------------------------------
@@ -89,6 +128,15 @@ STOP_WORDS = {
     "drive", "create", "range", "excellent", "communication", "solve", "solve",
     "build", "build", "focus", "design", "deliver", "manage", "ensure",
 }
+
+# Additional stop words to avoid extracting low-value keywords out of job postings
+EXTENDED_STOP_WORDS = {
+    'are', 'is', 'am', 'be', 'being', 'been', 'a', 'an', 'the', 'in', 'on', 'at', 'by', 'for', 'to',
+    'of', 'with', 'we', 'you', 'they', 'job', 'position', 'looking', 'seeking', 'candidate', 'role',
+    'hire', 'hiring', 'apply', 'applicant', 'your', 'our', 'this', 'that', "we're", "we've"
+}
+
+STOP_WORDS.update(EXTENDED_STOP_WORDS)
 
 TEMPLATES_KEYWORD = [
     "Can you walk me through a recent project where you applied {keyword}?",
@@ -238,6 +286,15 @@ def build_questions_payload(request: GenerateRequest) -> Dict[str, Any]:
         raise ValueError("Either messages/prompt or job_description/job_role must be provided")
 
     try:
+        # Check Ollama/LLM availability and prefer local fallback if not reachable
+        try:
+            ok, reason = check_ollama_available()
+            if not ok:
+                raise RuntimeError(reason)
+        except Exception as e:
+            # If LLM is unavailable, we fall back to local templates by raising
+            raise RuntimeError(f"LLM endpoint is not available: {e}")
+
         # Create a more focused prompt for cleaner question generation
         focused_prompt = f"""Generate exactly {num_questions} professional interview questions for this job.
 
@@ -255,6 +312,12 @@ Questions:"""
 
         focused_messages = [{"role": "user", "content": focused_prompt}]
         
+        # If Ollama is not available at the configured host:port, raise early so we hit fallback
+        try:
+            requests.get(f"{settings.OLLAMA_BASE_URL}/api/version", timeout=30)
+        except Exception as e:
+            raise RuntimeError("LLM endpoint is not available: " + str(e))
+
         ollama_response = requests.post(
             f"{settings.OLLAMA_BASE_URL}/api/chat",
             json={
@@ -378,80 +441,23 @@ class InterviewSubmitRequest(BaseModel):
 @app.get("/health")
 async def health_check():
     """Server health status."""
+    llm_status = {
+        "llm": "unknown",
+        "llm_reason": None
+    }
+    ok, reason = check_ollama_available()
+    llm_status["llm"] = "available" if ok else "unavailable"
+    llm_status["llm_reason"] = None if ok else reason
+
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "services": {
-            "stt": "available",
-            "tts": "available", 
-            "llm": "available"
-        }
+            "stt": "available" if stt_available else "unavailable",
+            "tts": "available" if tts_available else "unavailable",
+        },
+        **llm_status,
     }
-
-
-# Speech-to-Text Endpoint
-@app.post("/transcribe")
-async def transcribe_audio(
-    audio: UploadFile = File(...),
-    detailed: bool = Form(False),
-    session_id: Optional[str] = Form(None),
-    question_index: Optional[int] = Form(None)
-):
-    """Transcribe audio to text using MLX-Whisper and optionally store result."""
-    try:
-        # Save uploaded file temporarily
-        extension = ''
-        if audio.filename:
-            extension = os.path.splitext(audio.filename)[1]
-        if not extension and audio.content_type:
-            extension = CONTENT_TYPE_EXTENSION_MAP.get(audio.content_type.lower(), '')
-        if not extension:
-            extension = '.tmp'
-        if not extension.startswith('.'):
-            extension = f'.{extension}'
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp_file:
-            content = await audio.read()
-            temp_file.write(content)
-            temp_path = temp_file.name
-        
-        try:
-            # Transcribe using existing MLX-Whisper function
-            transcript = await transcribe_audio_mlx(temp_path, detailed=detailed)
-            
-            transcript_id = None
-            # If session info provided, store the transcript persistently
-            if session_id and question_index is not None:
-                # Store audio file (use the content we already read)
-                stored_audio_path = data_manager.store_audio_file(
-                    session_id, question_index, content, audio.filename or "audio.tmp"
-                )
-                
-                # Store transcript
-                transcript_data = {
-                    "transcript": transcript,
-                    "audio_filename": audio.filename,
-                    "stored_audio_path": stored_audio_path,
-                    "detailed": detailed,
-                    "processing_timestamp": datetime.now().isoformat()
-                }
-                
-                transcript_id = data_manager.store_transcript(session_id, question_index, transcript_data)
-                print(f"💾 Stored transcript {transcript_id} for session {session_id}, question {question_index}")
-            
-            return {
-                "transcript": transcript,
-                "transcript_id": transcript_id,
-                "filename": audio.filename,
-                "timestamp": datetime.now().isoformat()
-            }
-        finally:
-            # Cleanup temp file
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
-                
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 
 # Text-to-Speech Endpoint  

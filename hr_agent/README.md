@@ -1,12 +1,14 @@
 # HR Interview Agent - Client-Server Architecture
-### 🚀 Option 1: R### 🚀 Option 1: Recommended Start
+### 🚀 Option 1: Recommended Start
 ```bash
-cd client_server
+cd hr_agent
 ./start_client_server.sh [start|stop|clean|help]
 ```
 The script hosts the API on `0.0.0.0:8001` and the web UI on `0.0.0.0:8080`, so teammates on the same network can reach it using your machine's IP address.
 
-### 🔧 Option 2: Manual Startarth## 🎯 Interview Experience Upgrades
+### ⚙️ Option 2: Manual Start
+
+## 🎯 Interview Experience Upgrades
 
 ### 🎤 Smart Auto-Stop Recording
 - **Intelligent Timer**: Auto-stop timer only starts after user begins speaking (not immediately)
@@ -25,7 +27,9 @@ The script hosts the API on `0.0.0.0:8001` and the web UI on `0.0.0.0:8080`, so 
 - Automatic API host detection for network testing
 - URL parameter support (`?api_host=SERVER_IP`) for cross-device access
 - Clean, distraction-free interface without unnecessary troubleshooting panels
-- HTTPS support with self-signed certificates for microphone access across networksrectory contains a simple client-server architecture for the HR Interview Agent where:
+ - HTTPS support with self-signed certificates for microphone access across networks.
+
+This directory structure contains a simple hr_agent architecture for the HR Interview Agent where:
 
 - **Server**: Centralized FastAPI server that handles all AI processing (STT, TTS, LLM)
 - **Client**: Lightweight clients that communicate with the server via HTTP API
@@ -57,13 +61,13 @@ The script hosts the API on `0.0.0.0:8001` and the web UI on `0.0.0.0:8080`, so 
 
 ### 🚀 Option 1: Quick Start (Recommended)
 ```bash
-cd client_server
+cd hr_agent
 ./quick_start.sh
 ```
 **This will:**
 - Start the FastAPI server on port 8001
-- Host the web client at `http://localhost:8080/client_server/client/index.html`
-- Generate a self-signed certificate (if needed) and also serve `https://localhost:8443/client_server/client/index.html` so browsers allow microphone access on other devices
+- Host the web client at `http://localhost:8080/hr_agent/client/index.html`
+- Generate a self-signed certificate (if needed) and also serve `https://localhost:8443/hr_agent/client/index.html` so browsers allow microphone access on other devices
 - Automatically open the hosted web client in your browser
 - Display both local and LAN URLs for easy access
 
@@ -71,7 +75,7 @@ cd client_server
 
 ### ⚙️ Option 2: Advanced Script with Options
 ```bash
-cd client_server
+cd hr_agent
 ./start_client_server.sh [start|stop|clean|help]
 ```
 The script hosts the API on `0.0.0.0:8001` and the web UI on `0.0.0.0:8080`, so teammates on the same network can reach it using your machine's IP address.
@@ -79,7 +83,7 @@ The script hosts the API on `0.0.0.0:8001` and the web UI on `0.0.0.0:8080`, so 
 ### 🔧 Option 3: Manual Start
 ```bash
 # Start server
-cd client_server/server
+cd hr_agent/server
 python3 main.py
 
 # Serve the web client (terminal 2)
@@ -87,7 +91,7 @@ cd ../..
 python3 -m http.server 8080 --bind 0.0.0.0
 
 # Open the hosted UI
-open http://localhost:8080/client_server/client/index.html
+open http://localhost:8080/hr_agent/client/index.html
 ```
 
 ## �️ Interview Experience Upgrades
@@ -100,8 +104,8 @@ open http://localhost:8080/client_server/client/index.html
 
 After starting with any method above:
 
-- **🎯 Web Client (local)**: `http://localhost:8080/client_server/client/index.html`
-- **🎯 Web Client (LAN)**: `http://<your-ip>:8080/client_server/client/index.html`
+- **🎯 Web Client (local)**: `http://localhost:8080/hr_agent/client/index.html`
+- **🎯 Web Client (LAN)**: `http://<your-ip>:8080/hr_agent/client/index.html`
 - **🔧 API Server (local)**: `http://localhost:8001`
 - **🔧 API Server (LAN)**: `http://<your-ip>:8001`
 - **📚 API Documentation**: `http://localhost:8001/docs`
@@ -111,7 +115,7 @@ After starting with any method above:
 
 ### Use Python Client
 ```bash
-cd client_server/client
+cd hr_agent/client
 python3 hr_client.py
 ```
 
@@ -138,7 +142,7 @@ python3 hr_client.py
 ## Directory Structure
 
 ```
-client_server/
+hr_agent/
 ├── server/                    # FastAPI server
 │   ├── main.py               # Server entry point
 │   ├── data_manager.py       # Session and data management
@@ -169,6 +173,7 @@ client_server/
 - **Optimization**: Apple Silicon (MLX) acceleration
 - **Fallback**: OpenAI Whisper (CPU) for non-Apple Silicon systems
 - **Repository**: [ml-explore/mlx-whisper](https://github.com/ml-explore/mlx-whisper)
+- **Auth Tip**: If Hugging Face returns 401 errors, set a valid token via `export HF_TOKEN=hf_xxx` or point the server to a manually downloaded model with `export MLX_WHISPER_MODEL_PATH=/absolute/path/to/whisper-base`.
 
 ### Text-to-Speech (TTS)
 **Piper TTS**

@@ -20,12 +20,16 @@ HTTPS_API_PORT=8002
 CLIENT_HTTP_PORT=8080
 CLIENT_HTTPS_PORT=8443
 SERVER_BIND_HOST="0.0.0.0"
+OLLAMA_PORT=11434
+OLLAMA_URL="http://127.0.0.1:$OLLAMA_PORT"
+OLLAMA_BINARY="ollama"
 
 # Dynamically determine project paths
 CLIENT_SERVER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$CLIENT_SERVER_DIR")"
-SERVER_DIR="$PROJECT_ROOT/client_server/server"
-CLIENT_DIR="$PROJECT_ROOT/client_server/client"
+# The script runs inside the hr_agent folder, so point server and client directly
+SERVER_DIR="$CLIENT_SERVER_DIR/server"
+CLIENT_DIR="$CLIENT_SERVER_DIR/client"
 CERT_PATH="$CLIENT_SERVER_DIR/cert.pem"
 KEY_PATH="$CLIENT_SERVER_DIR/key.pem"
 
@@ -77,6 +81,13 @@ stop_existing_processes() {
             sleep 1
         fi
     done
+
+    # Also stop Ollama if we started it
+    if [ -n "$OLLAMA_PID" ] && kill -0 "$OLLAMA_PID" 2>/dev/null; then
+        echo "   Stopping Ollama with PID $OLLAMA_PID..."
+        kill "$OLLAMA_PID" 2>/dev/null || kill -9 "$OLLAMA_PID" 2>/dev/null
+        sleep 1
+    fi
 }
 
 # Generate a self-signed certificate if needed
@@ -154,6 +165,42 @@ EOF
     echo -e "${GREEN}Certificate created successfully.${NC}"
 }
 
+# Start Ollama if not already running
+start_ollama() {
+    # If Ollama is already receiving requests, do nothing
+    if lsof -i :$OLLAMA_PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
+        echo "Ollama appears to be already running on port $OLLAMA_PORT"
+        return 0
+    fi
+
+    if ! command -v "$OLLAMA_BINARY" >/dev/null 2>&1; then
+        echo -e "${YELLOW}ollama binary not found, skipping Ollama startup. If you want local LLMs, install Ollama.${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}Starting Ollama local LLM service...${NC}"
+    # Start Ollama in background; keep logs for debugging
+    "$OLLAMA_BINARY" serve >/tmp/ollama.log 2>&1 &
+    OLLAMA_PID=$!
+    PIDS+=("$OLLAMA_PID")
+
+    # Wait for Ollama to be responsive
+    wait_for_service "$OLLAMA_URL/api/version" "Ollama daemon" || {
+        echo -e "${RED}Ollama failed to start within timeout.${NC}"
+        return 2
+    }
+
+    # Check if models are available, load default if not
+    if ! curl -s "$OLLAMA_URL/api/tags" | grep -q '"name"'; then
+        echo -e "${YELLOW}No models loaded in Ollama. Loading default model (gemma3:27b)...${NC}"
+        "$OLLAMA_BINARY" pull gemma3:27b >/dev/null 2>&1 &
+        # Don't wait for pull, as it may take time; server will retry
+    fi
+
+    echo -e "${GREEN}Ollama started (PID $OLLAMA_PID).${NC}"
+    return 0
+}
+
 # Check and install Python dependencies
 check_dependencies() {
     echo -e "${BLUE}Checking dependencies...${NC}"
@@ -162,11 +209,12 @@ check_dependencies() {
         exit 1
     fi
     
-    # Activate virtual environment if it exists
-    if [ -f "$PROJECT_ROOT/venv/bin/activate" ]; then
-        source "$PROJECT_ROOT/venv/bin/activate"
-    elif [ -f "$PROJECT_ROOT/.venv/bin/activate" ]; then
-        source "$PROJECT_ROOT/.venv/bin/activate"
+    # Always activate the main venv from /Users/Omar/Desktop/hr_agent_final_attempt/venv
+    if [ -f "/Users/Omar/Desktop/hr_agent_final_attempt/venv/bin/activate" ]; then
+        source "/Users/Omar/Desktop/hr_agent_final_attempt/venv/bin/activate"
+    else
+        echo -e "${RED}Python venv not found at /Users/Omar/Desktop/hr_agent_final_attempt/venv. Please create it and install dependencies.${NC}"
+        exit 1
     fi
         
     if ! python3 -c "import fastapi, uvicorn" &>/dev/null; then
@@ -202,13 +250,17 @@ wait_for_service() {
 start_servers() {
     echo -e "${BLUE}Starting all services...${NC}"
     
-    # Add project root to Python path for module imports
-    export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+    # Ensure both the hr_agent folder and its parent (workspace root) are on PYTHONPATH
+    export PYTHONPATH="$CLIENT_SERVER_DIR:$PROJECT_ROOT:$PYTHONPATH"
     
+    # 0. Start local Ollama if available so the LLM endpoints respond
+    start_ollama || true
+
     # 1. Start HTTP API Server
     echo "Starting HTTP API Server..."
-    cd "$SERVER_DIR"
-    uvicorn main:app --host "$SERVER_BIND_HOST" --port "$SERVER_PORT" >/tmp/hr_agent_api_http.log 2>&1 &
+    # Run from project root so package imports and relative imports resolve properly
+    cd "$PROJECT_ROOT"
+    uvicorn hr_agent.server.main:app --host "$SERVER_BIND_HOST" --port "$SERVER_PORT" >/tmp/hr_agent_api_http.log 2>&1 &
     PIDS+=($!)
     wait_for_service "http://127.0.0.1:$SERVER_PORT/health" "HTTP API Server" || cleanup_on_exit
 
@@ -216,20 +268,23 @@ start_servers() {
     echo "Starting Static HTTP Client Server..."
     (cd "$PROJECT_ROOT" && python3 -m http.server "$CLIENT_HTTP_PORT" --bind "$SERVER_BIND_HOST" >/tmp/hr_agent_client_ui.log 2>&1) &
     PIDS+=($!)
-    wait_for_service "http://127.0.0.1:$CLIENT_HTTP_PORT/client_server/client/" "Static HTTP Server" || cleanup_on_exit
+    # Client files are served under /hr_agent/client/
+    wait_for_service "http://127.0.0.1:$CLIENT_HTTP_PORT/hr_agent/client/" "Static HTTP Server" || cleanup_on_exit
 
     # 3. Start HTTPS servers (if certificate is available)
     if ensure_certificate; then
         echo "Starting HTTPS API Server..."
-        cd "$SERVER_DIR"
-        uvicorn main:app --host "$SERVER_BIND_HOST" --port "$HTTPS_API_PORT" --ssl-keyfile "$KEY_PATH" --ssl-certfile "$CERT_PATH" >/tmp/hr_agent_api_https.log 2>&1 &
+        # Run from project root so package imports and relative imports resolve properly
+        cd "$PROJECT_ROOT"
+        uvicorn hr_agent.server.main:app --host "$SERVER_BIND_HOST" --port "$HTTPS_API_PORT" --ssl-keyfile "$KEY_PATH" --ssl-certfile "$CERT_PATH" >/tmp/hr_agent_api_https.log 2>&1 &
         PIDS+=($!)
         wait_for_service "https://127.0.0.1:$HTTPS_API_PORT/health" "HTTPS API Server" "-k" || cleanup_on_exit
         
         echo "Starting Static HTTPS Client Server..."
         python3 "$CLIENT_SERVER_DIR/serve_https.py" --port "$CLIENT_HTTPS_PORT" --directory "$PROJECT_ROOT" --cert "$CERT_PATH" --key "$KEY_PATH" >/tmp/hr_agent_client_ui_https.log 2>&1 &
         PIDS+=($!)
-        wait_for_service "https://127.0.0.1:$CLIENT_HTTPS_PORT/client_server/client/" "Static HTTPS Server" "-k" || cleanup_on_exit
+        # Client files are served under /hr_agent/client/
+        wait_for_service "https://127.0.0.1:$CLIENT_HTTPS_PORT/hr_agent/client/" "Static HTTPS Server" "-k" || cleanup_on_exit
     fi
 }
 
@@ -237,7 +292,7 @@ start_servers() {
 show_info() {
     local local_ip
     local_ip=$(get_local_ip)
-    local client_path="/client_server/client/index.html"
+    local client_path="/hr_agent/client/index.html"
     echo
     echo "=================================================="
     echo -e "${GREEN}All services are running!${NC}"
@@ -315,9 +370,9 @@ main() {
     read -p "Open web client in browser? (y/N): " -n 1 -r REPLY
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        local url_to_open="http://127.0.0.1:$CLIENT_HTTP_PORT/client_server/client/index.html"
+        local url_to_open="http://127.0.0.1:$CLIENT_HTTP_PORT/hr_agent/client/index.html"
         if is_port_in_use "$CLIENT_HTTPS_PORT"; then
-            url_to_open="https://127.0.0.1:$CLIENT_HTTPS_PORT/client_server/client/index.html"
+            url_to_open="https://127.0.0.1:$CLIENT_HTTPS_PORT/hr_agent/client/index.html"
         fi
         open_in_browser "$url_to_open"
     fi

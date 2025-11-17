@@ -51,10 +51,10 @@
             <div class="flex items-center">
                 <div class="bg-white rounded-2xl p-4 shadow-lg hover:shadow-xl transition-shadow duration-300">
                     <img 
-                        src="../../../frontend/public/images/HIVE-logo-4-color.png" 
+                        src="images/HIVE-logo-4-color.png" 
                         alt="HIVE Logo" 
                         class="h-28 md:h-36 w-auto object-contain"
-                        onerror="this.style.display='none'"
+                        onerror="this.src='images/logo-hive.svg'"
                     />
                 </div>
             </div>
@@ -73,6 +73,7 @@
                 </div>
                 <div class="text-center mt-1">
                     <span id="api-info" class="text-xs text-blue-200 opacity-75">API: Loading...</span>
+                    <span id="llm-status" class="ml-3 text-xs text-yellow-200">LLM: Loading...</span>
                 </div>
             </div>
             
@@ -80,10 +81,10 @@
             <div class="flex items-center">
                 <div class="bg-white rounded-2xl p-4 shadow-lg hover:shadow-xl transition-shadow duration-300">
                     <img 
-                        src="../../../frontend/public/images/GEA Logo_1.jpg" 
+                        src="images/gea.png" 
                         alt="GE Appliances Logo" 
                         class="h-28 md:h-36 w-56 object-contain"
-                        onerror="this.style.display='none'"
+                        onerror="this.src='images/logo-gea.svg'"
                     />
                 </div>
             </div>
@@ -293,6 +294,7 @@
                         id="play-question-btn"
                         onclick="playCurrentQuestion()"
                         class="px-4 py-2 rounded-full font-semibold text-white transition-colors flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
+                        disabled
                     >
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832L14 10.202a1 1 0 000-1.65l-4.445-2.384z" clip-rule="evenodd" />
@@ -619,7 +621,7 @@
 
         function initializeApp() {
             // Set default job description
-            document.getElementById('job-description').value = "We are looking for a skilled factory worker or engineer to join our team at GE Appliances. The ideal candidate should have experience with manufacturing processes, equipment maintenance, quality control, safety protocols, and working in a fast-paced production environment.";
+            document.getElementById('job-description').value = "Seeking a skilled factory worker or engineer to join our team at GE Appliances. The ideal candidate has experience with manufacturing processes, equipment maintenance, quality control, safety protocols, and working in a fast-paced production environment.";
             
             // Initialize TTS status
             updateTTSStatus();
@@ -730,12 +732,12 @@
                 return;
             }
 
-            if (!IS_SECURE_CONTEXT) {
+                if (!IS_SECURE_CONTEXT) {
                 statusEl.className = 'inline-flex items-center px-2 py-1 rounded bg-yellow-100 text-yellow-800';
                 statusEl.textContent = 'Recording blocked on HTTP';
                 if (warningEl) {
                     warningEl.classList.remove('hidden');
-                    warningEl.innerHTML = 'Browsers only allow microphone capture over HTTPS or localhost. Please open this page via <strong>https://</strong> (self-signed works) or keep using the upload option.';
+                    warningEl.innerHTML = 'Browsers generally restrict microphone capture to HTTPS or localhost. Please switch to <strong>https://</strong> (self-signed is okay) or use the upload option to provide audio.';
                 }
                 if (startButton) {
                     startButton.disabled = true;
@@ -814,6 +816,39 @@
                 if (apiInfo) {
                     apiInfo.textContent = `API: ${getApiHostDisplay()}`;
                     apiInfo.className = 'text-xs text-blue-200 opacity-75';
+                }
+                // Update LLM status display if present in the health payload
+                const llmStatus = document.getElementById('llm-status');
+                if (llmStatus) {
+                    const llm = data.llm || data.services?.llm || 'unknown';
+                    llmStatus.textContent = `LLM: ${llm}`;
+                    if (llm === 'available') {
+                        llmStatus.className = 'ml-3 text-xs text-green-300';
+                    } else if (llm === 'unavailable') {
+                        llmStatus.className = 'ml-3 text-xs text-red-300';
+                        const reason = data.llm_reason || data.llm_reason || '';
+                        if (reason) {
+                            llmStatus.textContent = `LLM: ${llm} (${reason})`;
+                        }
+                    } else {
+                        llmStatus.className = 'ml-3 text-xs text-yellow-200';
+                    }
+                }
+
+                // Update TTS status and disable play button if unavailable
+                const ttsStatus = data.services?.tts || 'unknown';
+                window.ttsAvailable = ttsStatus === 'available';
+                const playBtn = document.getElementById('play-question-btn');
+                if (playBtn) {
+                    if (window.ttsAvailable) {
+                        playBtn.disabled = false;
+                        playBtn.title = '';
+                        playBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        playBtn.disabled = true;
+                        playBtn.title = 'TTS unavailable - cannot play questions';
+                        playBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
                 }
 
             } catch (error) {
@@ -1761,12 +1796,8 @@
                 // Reset UI state for new question
                 resetQuestionUI();
 
-                // Autoplay the question after a short delay to allow UI to settle
-                setTimeout(() => {
-                    playCurrentQuestion(true).catch(error => {
-                        console.warn('Autoplay failed:', error);
-                    });
-                }, 400);
+                // Skip autoplay entirely when TTS is unavailable
+                // User will read the question and manually start recording
             } else {
                 completeInterview();
             }
@@ -1805,7 +1836,15 @@
             
             // Reset play button
             const playBtn = document.getElementById('play-question-btn');
-            playBtn.disabled = false;
+            if (window.ttsAvailable) {
+                playBtn.disabled = false;
+                playBtn.title = '';
+                playBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                playBtn.disabled = true;
+                playBtn.title = 'TTS unavailable - cannot play questions';
+                playBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
             document.getElementById('play-btn-text').textContent = 'Play Question';
             
             // Reset mic level
@@ -1832,7 +1871,7 @@
 
             appState.isPlayingQuestion = false;
 
-            if (playBtn) {
+            if (playBtn && window.ttsAvailable) {
                 playBtn.disabled = false;
             }
             if (playBtnText) {
@@ -1845,6 +1884,12 @@
             const playBtnText = document.getElementById('play-btn-text');
             
             if (appState.isPlayingQuestion) return;
+            
+            // Check if TTS is available before attempting to play
+            if (!window.ttsAvailable) {
+                console.warn('TTS is unavailable, cannot play question audio');
+                return;
+            }
             
             const questionText = appState.approvedQuestions[appState.currentQuestionIndex];
             
@@ -2196,7 +2241,9 @@
                 }
                 
             } catch (error) {
-                alert('Error processing audio: ' + error.message);
+                console.error("Error during audio processing:", error);
+                const errorMessage = error.message || JSON.stringify(error);
+                alert('Error processing audio: ' + errorMessage + '. See console for details.');
             } finally {
                 appState.recordedBlob = null;
                 appState.audioChunks = [];
@@ -2268,7 +2315,9 @@
                 }
                 
             } catch (error) {
-                alert('Error processing uploaded audio: ' + error.message);
+                console.error("Error during uploaded audio processing:", error);
+                const errorMessage = error.message || JSON.stringify(error);
+                alert('Error processing uploaded audio: ' + errorMessage + '. See console for details.');
             }
         }
 

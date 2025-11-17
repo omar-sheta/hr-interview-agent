@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Simple HTTPS static file server for the client_server bundle.
+"""Simple HTTPS static file server for the `hr_agent` client bundle.
 
 Usage example:
     python3 serve_https.py --cert cert.pem --key key.pem --port 8443
@@ -24,7 +24,7 @@ DEFAULT_DIRECTORY = pathlib.Path(__file__).parent
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Serve client files over HTTPS")
+    parser = argparse.ArgumentParser(description="Serve hr_agent client files over HTTPS")
     parser.add_argument(
         "--host",
         default=DEFAULT_HOST,
