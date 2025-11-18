@@ -1,0 +1,13 @@
+# Ignore runtime-generated audio, session JSON, and transcripts
+# These are generated during interviews and shouldn't be checked into git
+/audio/
+/sessions/
+/transcripts/
+
+# Temporary macOS files
+.DS_Store
+
+# Optional: ignore per-question temp files
+*.webm
+*.wav
+*.ogg
