@@ -2,7 +2,6 @@
 Data Manager for HR Interview Agent Server
 
 Handles persistent storage of sessions, transcripts, and audio files.
-Designed to be easily replaceable with a database backend later.
 """
 
 import json
@@ -13,6 +12,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 import shutil
 
+from .database import create_tables, get_db_connection
+
 
 class DataManager:
     """Manages persistent storage for interview sessions and transcripts."""
@@ -22,88 +23,42 @@ class DataManager:
         self.sessions_path = self.base_path / "sessions"
         self.transcripts_path = self.base_path / "transcripts"  
         self.audio_path = self.base_path / "audio"
-        self.users_file = self.base_path / "users.json"
-        self.interviews_file = self.base_path / "interviews.json"
-        self.results_file = self.base_path / "results.json"
         
-        # Simple cache with modification time tracking
-        self._cache = {}
-        self._cache_mtime = {}
+        # Initialize database
+        create_tables()
         
-        # Ensure directories exist
+        # Ensure directories for file-based storage exist
         for path in [self.sessions_path, self.transcripts_path, self.audio_path]:
             path.mkdir(parents=True, exist_ok=True)
-        
-        # Ensure JSON stores exist
-        for json_file in [self.users_file, self.interviews_file, self.results_file]:
-            if not json_file.exists():
-                json_file.parent.mkdir(parents=True, exist_ok=True)
-                with open(json_file, "w") as handle:
-                    json.dump([], handle, indent=2)
-
-    # ------------------------------------------------------------------
-    # JSON helpers for lightweight persistence
-    # ------------------------------------------------------------------
-    def _load_json_list(self, file_path: Path) -> list[dict]:
-        """Load list of dictionaries from a JSON file with caching."""
-        try:
-            file_key = str(file_path)
-            
-            # Check if file exists
-            if not file_path.exists():
-                return []
-            
-            # Get current modification time
-            current_mtime = file_path.stat().st_mtime
-            
-            # Return cached data if file hasn't changed
-            if file_key in self._cache and file_key in self._cache_mtime:
-                if self._cache_mtime[file_key] == current_mtime:
-                    return self._cache[file_key]
-            
-            # Load from file and update cache
-            with open(file_path, "r") as handle:
-                data = json.load(handle)
-                self._cache[file_key] = data
-                self._cache_mtime[file_key] = current_mtime
-                return data
-        except (FileNotFoundError, json.JSONDecodeError):
-            return []
-
-    def _save_json_list(self, file_path: Path, data: list[dict]) -> None:
-        """Save list of dictionaries to a JSON file and update cache."""
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(file_path, "w") as handle:
-            json.dump(data, handle, indent=2)
-        
-        # Update cache after write
-        file_key = str(file_path)
-        self._cache[file_key] = data
-        self._cache_mtime[file_key] = file_path.stat().st_mtime
 
     # Users ----------------------------------------------------------------
     def load_users(self) -> List[Dict[str, Any]]:
-        return self._load_json_list(self.users_file)
-
-    def save_users(self, users: List[Dict[str, Any]]) -> None:
-        self._save_json_list(self.users_file, users)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users")
+        users = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return users
 
     def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
-        for user in self.load_users():
-            if str(user.get("id")) == str(user_id):
-                return user
-        return None
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+        conn.close()
+        return dict(user) if user else None
 
     def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
         username = username.lower()
-        for user in self.load_users():
-            if str(user.get("username", "")).lower() == username:
-                return user
-        return None
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE lower(username) = ?", (username,))
+        user = cursor.fetchone()
+        conn.close()
+        return dict(user) if user else None
 
     def create_user(self, username: str, password: str, role: str = "candidate") -> Optional[Dict[str, Any]]:
-        """Create a new user and save to users.json. Returns the new user or None if username exists."""
-        users = self.load_users()
+        """Create a new user and save to the database. Returns the new user or None if username exists."""
         if self.get_user_by_username(username):
             return None  # Username already exists
 
@@ -114,48 +69,134 @@ class DataManager:
             "role": role,
             "created_at": datetime.now().isoformat(),
         }
-        users.append(new_user)
-        self.save_users(users)
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO users (id, username, password, role, created_at) VALUES (?, ?, ?, ?, ?)",
+            (new_user["id"], new_user["username"], new_user["password"], new_user["role"], new_user["created_at"]),
+        )
+        conn.commit()
+        conn.close()
+
         print(f"➕ Created new user: {username} with role {role}")
         return new_user
 
     # Interviews ------------------------------------------------------------
     def load_interviews(self) -> List[Dict[str, Any]]:
-        return self._load_json_list(self.interviews_file)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM interviews")
+        interviews = []
+        for row in cursor.fetchall():
+            interview = dict(row)
+            interview['config'] = json.loads(interview['config']) if interview['config'] else {}
+            interview['allowed_candidate_ids'] = json.loads(interview['allowed_candidate_ids']) if interview['allowed_candidate_ids'] else []
+            interviews.append(interview)
+        conn.close()
+        return interviews
 
     def save_interviews(self, interviews: List[Dict[str, Any]]) -> None:
-        self._save_json_list(self.interviews_file, interviews)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM interviews")
+        for interview in interviews:
+            cursor.execute(
+                "INSERT INTO interviews (id, title, description, config, allowed_candidate_ids, active) VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    interview["id"],
+                    interview["title"],
+                    interview.get("description"),
+                    json.dumps(interview.get("config", {})),
+                    json.dumps(interview.get("allowed_candidate_ids", [])),
+                    interview.get("active", True),
+                ),
+            )
+        conn.commit()
+        conn.close()
 
     def get_interview(self, interview_id: str) -> Optional[Dict[str, Any]]:
-        for interview in self.load_interviews():
-            if str(interview.get("id")) == str(interview_id):
-                return interview
-        return None
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM interviews WHERE id = ?", (interview_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            return None
+        interview = dict(row)
+        interview['config'] = json.loads(interview['config']) if interview['config'] else {}
+        interview['allowed_candidate_ids'] = json.loads(interview['allowed_candidate_ids']) if interview['allowed_candidate_ids'] else []
+        return interview
 
     # Results ---------------------------------------------------------------
     def load_results(self) -> List[Dict[str, Any]]:
-        return self._load_json_list(self.results_file)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM results")
+        results = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return results
 
-    def save_results(self, results: List[Dict[str, Any]]) -> None:
-        self._save_json_list(self.results_file, results)
-
-    def upsert_result(self, session_id: str, record: Dict[str, Any]) -> Dict[str, Any]:
+    def upsert_result(self, session_id: str, record: Dict[str, Any]) -> Dict[str, Any]]:
         """Insert or update a result record keyed by session_id."""
-        results = self.load_results()
-        existing_index = None
-        for index, entry in enumerate(results):
-            if entry.get("session_id") == session_id:
-                existing_index = index
-                break
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-        if existing_index is not None:
-            merged = {**results[existing_index], **record}
-            results[existing_index] = merged
+        # Check if a result with the given session_id already exists
+        cursor.execute("SELECT * FROM results WHERE session_id = ?", (session_id,))
+        existing_result = cursor.fetchone()
+
+        if existing_result:
+            # Update existing record
+            update_data = {**dict(existing_result), **record}
+            update_data['updated_at'] = datetime.now().isoformat()
+
+            cursor.execute(
+                """
+                UPDATE results
+                SET interview_id = ?, candidate_id = ?, summary = ?, feedback = ?, score = ?, updated_at = ?, status = ?
+                WHERE session_id = ?
+                """,
+                (
+                    update_data.get("interview_id"),
+                    update_data.get("candidate_id"),
+                    update_data.get("summary"),
+                    update_data.get("feedback"),
+                    update_data.get("score"),
+                    update_data["updated_at"],
+                    update_data.get("status"),
+                    session_id,
+                ),
+            )
         else:
+            # Insert new record
             record.setdefault("id", str(uuid.uuid4()))
             record.setdefault("status", "pending")
-            results.append(record)
-        self.save_results(results)
+            record["session_id"] = session_id
+            record["created_at"] = datetime.now().isoformat()
+            record["updated_at"] = record["created_at"]
+
+            cursor.execute(
+                """
+                INSERT INTO results (id, session_id, interview_id, candidate_id, summary, feedback, score, created_at, updated_at, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    record["id"],
+                    record["session_id"],
+                    record.get("interview_id"),
+                    record.get("candidate_id"),
+                    record.get("summary"),
+                    record.get("feedback"),
+                    record.get("score"),
+                    record["created_at"],
+                    record["updated_at"],
+                    record["status"],
+                ),
+            )
+
+        conn.commit()
+        conn.close()
         return record
     
     # Session Management

@@ -34,7 +34,7 @@ const defaultForm = {
   active: true,
 };
 
-const AdminInterviewForm = ({ onSave, initialInterview = null, onCancelEdit }) => {
+const AdminInterviewForm = ({ onSave, initialInterview = null, onCancelEdit, isSubmitting = false }) => {
   const [form, setForm] = useState(defaultForm);
   const [questions, setQuestions] = useState([]);
   const [error, setError] = useState('');
@@ -267,8 +267,8 @@ const AdminInterviewForm = ({ onSave, initialInterview = null, onCancelEdit }) =
               Cancel Edit
             </Button>
           )}
-          <Button type="submit" variant="contained">
-            {initialInterview ? 'Update Interview' : 'Save Interview'}
+          <Button type="submit" variant="contained" disabled={isSubmitting || busyMessage}>
+            {isSubmitting ? <CircularProgress size={24} /> : (initialInterview ? 'Update Interview' : 'Save Interview')}
           </Button>
         </Stack>
       </Stack>

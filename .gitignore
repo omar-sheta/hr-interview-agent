@@ -1,1 +1,5 @@
 hr_agent/server/piper_voices/*.onnx
+__pycache__/
+*.log
+*.db
+hr_agent/server/data/

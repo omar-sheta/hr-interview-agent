@@ -27,6 +27,7 @@ const AdminDashboard = () => {
   const { user } = useAuth();
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const [editingInterview, setEditingInterview] = useState(null);
@@ -52,16 +53,23 @@ const AdminDashboard = () => {
   }, [user]);
 
   const handleSaveInterview = async (payload, isUpdate) => {
-    const { id, ...body } = payload;
-    const requestBody = { admin_id: user.user_id, ...body };
-    if (isUpdate && id) {
-      await api.put(`/api/admin/interviews/${id}`, requestBody);
-    } else {
-      await api.post('/api/admin/interviews', requestBody);
+    setFormSubmitting(true);
+    try {
+      const { id, ...body } = payload;
+      const requestBody = { admin_id: user.user_id, ...body };
+      if (isUpdate && id) {
+        await api.put(`/api/admin/interviews/${id}`, requestBody);
+      } else {
+        await api.post('/api/admin/interviews', requestBody);
+      }
+      await loadInterviews();
+      setEditingInterview(null);
+      setFormDialogOpen(false);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to save interview');
+    } finally {
+      setFormSubmitting(false);
     }
-    await loadInterviews();
-    setEditingInterview(null);
-    setFormDialogOpen(false);
   };
 
   const handleCreateNew = () => {
@@ -173,6 +181,7 @@ const AdminDashboard = () => {
                 initialInterview={editingInterview}
                 onSave={handleSaveInterview}
                 onCancelEdit={handleCloseDialog}
+                isSubmitting={formSubmitting}
               />
             </Box>
           </DialogContent>

@@ -518,11 +518,15 @@ async def health_check():
 
 @app.post("/api/login")
 async def login(request: LoginRequest):
-    """Simple username/password login backed by users.json."""
+    """Simple username/password login backed by the database."""
+    print(f"--- LOGIN ATTEMPT: username='{request.username}' ---")
     user = data_manager.get_user_by_username(request.username)
+    print(f"--- DB LOOKUP RESULT: user={user} ---")
     if not user or user.get("password") != request.password:
+        print(f"--- LOGIN FAILED: Invalid credentials for '{request.username}' ---")
         return {"success": False, "message": "Invalid credentials"}
     
+    print(f"--- LOGIN SUCCESS: user_id='{user.get('id')}' ---")
     return {
         "success": True,
         "user_id": user.get("id"),
