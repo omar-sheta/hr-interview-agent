@@ -57,7 +57,7 @@ class DataManager:
         conn.close()
         return dict(user) if user else None
 
-    def create_user(self, username: str, password: str, role: str = "candidate") -> Optional[Dict[str, Any]]:
+    def create_user(self, username: str, password: str, role: str = "candidate", email: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Create a new user and save to the database. Returns the new user or None if username exists."""
         if self.get_user_by_username(username):
             return None  # Username already exists
@@ -66,6 +66,7 @@ class DataManager:
             "id": str(uuid.uuid4()),
             "username": username,
             "password": password,  # Storing as plain text for now, consider hashing in production
+            "email": email,
             "role": role,
             "created_at": datetime.now().isoformat(),
         }
@@ -73,8 +74,8 @@ class DataManager:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO users (id, username, password, role, created_at) VALUES (?, ?, ?, ?, ?)",
-            (new_user["id"], new_user["username"], new_user["password"], new_user["role"], new_user["created_at"]),
+            "INSERT INTO users (id, username, password, email, role, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (new_user["id"], new_user["username"], new_user["password"], new_user["email"], new_user["role"], new_user["created_at"]),
         )
         conn.commit()
         conn.close()
@@ -133,11 +134,46 @@ class DataManager:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM results")
-        results = [dict(row) for row in cursor.fetchall()]
+        results = []
+        for row in cursor.fetchall():
+            r = dict(row)
+            # Parse JSON columns where applicable
+            try:
+                r['answers'] = json.loads(r['answers']) if r.get('answers') else []
+            except Exception:
+                r['answers'] = r.get('answers') or []
+            try:
+                r['feedback'] = json.loads(r['feedback']) if r.get('feedback') else []
+            except Exception:
+                r['feedback'] = r.get('feedback') or []
+            try:
+                r['scores'] = json.loads(r['scores']) if r.get('scores') else {}
+            except Exception:
+                r['scores'] = r.get('scores') or {}
+            results.append(r)
         conn.close()
         return results
 
-    def upsert_result(self, session_id: str, record: Dict[str, Any]) -> Dict[str, Any]]:
+    def save_results(self, results: List[Dict[str, Any]]) -> None:
+        """Overwrite the results table with the provided list of results.
+        This is used by admin operations which edit multiple records at once.
+        For each record, we serialize JSON columns and insert/update appropriately.
+        """
+        if not isinstance(results, list):
+            return
+        # Upsert each result
+        for r in results:
+            session_id = r.get('session_id') or r.get('id')
+            if not session_id:
+                continue
+            # Ensure timestamp and id presence
+            r.setdefault('id', r.get('id') or str(uuid.uuid4()))
+            r.setdefault('created_at', r.get('created_at') or datetime.now().isoformat())
+            r.setdefault('updated_at', datetime.now().isoformat())
+            # Delegate to upsert_result which handles inserts/updates
+            self.upsert_result(session_id, r)
+
+    def upsert_result(self, session_id: str, record: Dict[str, Any]) -> Dict[str, Any]:
         """Insert or update a result record keyed by session_id."""
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -153,18 +189,32 @@ class DataManager:
 
             cursor.execute(
                 """
-                UPDATE results
-                SET interview_id = ?, candidate_id = ?, summary = ?, feedback = ?, score = ?, updated_at = ?, status = ?
+                UPDATE results SET
+                    interview_id = ?,
+                    candidate_id = ?,
+                    candidate_username = ?,
+                    interview_title = ?,
+                    timestamp = ?,
+                    answers = ?,
+                    feedback = ?,
+                    scores = ?,
+                    summary = ?,
+                    updated_at = ?,
+                    status = ?
                 WHERE session_id = ?
                 """,
                 (
-                    update_data.get("interview_id"),
-                    update_data.get("candidate_id"),
-                    update_data.get("summary"),
-                    update_data.get("feedback"),
-                    update_data.get("score"),
-                    update_data["updated_at"],
-                    update_data.get("status"),
+                    record.get("interview_id"),
+                    record.get("candidate_id"),
+                    record.get("candidate_username"),
+                    record.get("interview_title"),
+                    record.get("timestamp"),
+                    json.dumps(record.get("answers", [])),
+                    json.dumps(record.get("feedback", [])),
+                    json.dumps(record.get("scores", {})),
+                    record.get("summary"),
+                    datetime.now().isoformat(),
+                    record.get("status", "pending"),
                     session_id,
                 ),
             )
@@ -178,17 +228,21 @@ class DataManager:
 
             cursor.execute(
                 """
-                INSERT INTO results (id, session_id, interview_id, candidate_id, summary, feedback, score, created_at, updated_at, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO results (id, session_id, interview_id, candidate_id, candidate_username, interview_title, timestamp, answers, feedback, scores, summary, created_at, updated_at, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record["id"],
                     record["session_id"],
                     record.get("interview_id"),
                     record.get("candidate_id"),
+                    record.get("candidate_username"),
+                    record.get("interview_title"),
+                    record.get("timestamp"),
+                    json.dumps(record.get("answers", [])),
+                    json.dumps(record.get("feedback", [])),
+                    json.dumps(record.get("scores", {})),
                     record.get("summary"),
-                    record.get("feedback"),
-                    record.get("score"),
                     record["created_at"],
                     record["updated_at"],
                     record["status"],

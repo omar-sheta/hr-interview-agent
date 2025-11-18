@@ -444,6 +444,7 @@ class LoginRequest(BaseModel):
 class SignUpRequest(BaseModel):
     username: str
     password: str
+    email: Optional[str] = None
 
 
 class CandidateInterviewStartRequest(BaseModel):
@@ -542,7 +543,7 @@ async def signup(request: SignUpRequest):
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already registered")
     
-    new_user = data_manager.create_user(request.username, request.password, role="candidate")
+    new_user = data_manager.create_user(request.username, request.password, role="candidate", email=request.email)
     if not new_user:
         raise HTTPException(status_code=500, detail="Failed to create user")
     

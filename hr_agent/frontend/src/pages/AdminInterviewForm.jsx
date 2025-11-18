@@ -253,7 +253,7 @@ const AdminInterviewForm = ({ onSave, initialInterview = null, onCancelEdit, isS
             }
           />
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            Select which candidates can access this interview template.
+            Select which candidates can access this interview.
           </Typography>
         </Box>
 

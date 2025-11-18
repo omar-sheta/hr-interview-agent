@@ -21,6 +21,7 @@ def create_tables():
         id TEXT PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
+        email TEXT,
         role TEXT NOT NULL,
         created_at TEXT NOT NULL
     )
@@ -45,9 +46,13 @@ def create_tables():
         session_id TEXT UNIQUE NOT NULL,
         interview_id TEXT,
         candidate_id TEXT,
-        summary TEXT,
+        candidate_username TEXT,
+        interview_title TEXT,
+        timestamp TEXT,
+        answers TEXT,
         feedback TEXT,
-        score REAL,
+        scores TEXT,
+        summary TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         status TEXT

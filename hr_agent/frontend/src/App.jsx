@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage.jsx';
 import SignUpPage from './pages/SignUpPage.jsx';
-import CandidateDashboard from './pages/CandidateDashboard.jsx';
+import CandidateDashboard from './pages/CandidateDashboardNew.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminResultsPage from './pages/AdminResultsPage.jsx';
 import WorkspacePage from './pages/WorkspacePage.jsx';

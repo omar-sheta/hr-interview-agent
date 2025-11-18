@@ -105,7 +105,7 @@ const AdminDashboard = () => {
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button variant="outlined" startIcon={<Add />} onClick={handleCreateNew}>
-              Create Template
+              Create Interview
             </Button>
             <Button variant="contained" startIcon={<Visibility />} onClick={() => navigate('/admin/results')}>
               View All Results
@@ -114,7 +114,7 @@ const AdminDashboard = () => {
         </Box>
 
         <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 2 }}>
-          Interview Templates
+          Interviews
         </Typography>
         
         {loading && <CircularProgress />}
@@ -164,7 +164,7 @@ const AdminDashboard = () => {
             ))}
             {!interviews.length && (
               <Grid item xs={12}>
-                <Alert severity="info">No interview templates have been created yet. Click "Create Template" to get started.</Alert>
+                <Alert severity="info">No interviews have been created yet. Click "Create Interview" to get started.</Alert>
               </Grid>
             )}
           </Grid>
@@ -172,7 +172,7 @@ const AdminDashboard = () => {
 
         <Dialog open={formDialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
           <DialogTitle>
-            {editingInterview ? 'Edit Interview Template' : 'Create New Interview Template'}
+            {editingInterview ? 'Edit Interview' : 'Create New Interview'}
           </DialogTitle>
           <DialogContent>
             <Box sx={{ pt: 1 }}>
