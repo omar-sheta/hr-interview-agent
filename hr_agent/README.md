@@ -157,6 +157,15 @@ This directory structure contains a simple hr_agent architecture for the HR Inte
 └─────────────────┘                       └─────────────────┘
 ```
 
+> 📚 **For detailed architecture documentation**, see [ARCHITECTURE.md](../ARCHITECTURE.md) which includes:
+> - Complete system architecture with detailed diagrams
+> - Component breakdown and interactions
+> - Data flow and request lifecycle
+> - Technology stack details
+> - Security considerations
+> - Performance characteristics
+> - Deployment options
+
 ## Benefits
 
 - **🔒 Privacy-First**: All AI processing runs locally, no data leaves your network
