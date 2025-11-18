@@ -1,144 +1,174 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
-import InterviewCard from '../components/InterviewCard.jsx';
 import api from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import {
+  Container,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  Typography,
+  Button,
+  Box,
+  CircularProgress,
+  Alert,
+  List,
+  ListItem,
+  ListItemText,
+  Chip,
+  Divider,
+} from '@mui/material';
 
 const CandidateDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [interviews, setInterviews] = useState([]);
-  const [completedIds, setCompletedIds] = useState(new Set());
   const [history, setHistory] = useState([]);
-  const [loadingAssignments, setLoadingAssignments] = useState(true);
-  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeInterviewId, setActiveInterviewId] = useState(null);
+  const [startingInterviewId, setStartingInterviewId] = useState(null);
 
   useEffect(() => {
     if (!user) return;
 
-    const fetchAssignments = async () => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        setLoadingAssignments(true);
-        const { data } = await api.get('/api/candidate/interviews', {
+        const assignmentsPromise = api.get('/api/candidate/interviews', {
           params: { candidate_id: user.user_id },
         });
-        setInterviews(data.interviews || []);
-        setError('');
-      } catch (err) {
-        const detail = err.response?.data?.detail;
-        if (detail === 'Not Found') {
-          setInterviews([]);
-          setError('');
-        } else {
-          setError(detail || 'Unable to fetch interviews');
-        }
-      } finally {
-        setLoadingAssignments(false);
-      }
-    };
-
-    const fetchHistory = async () => {
-      try {
-        setLoadingHistory(true);
-        const completion = await api.get('/api/candidate/results', {
+        const historyPromise = api.get('/api/candidate/results', {
           params: { candidate_id: user.user_id, candidate_username: user.username },
         });
-        const results = completion.data.results || [];
-        const doneIds = new Set(results.map((result) => result.interview_id));
-        setCompletedIds(doneIds);
-        setHistory(results);
-      } catch {
-        setHistory([]);
+
+        const [assignmentsResponse, historyResponse] = await Promise.all([
+          assignmentsPromise,
+          historyPromise,
+        ]);
+
+        setInterviews(assignmentsResponse.data.interviews || []);
+        setHistory(historyResponse.data.results || []);
+        setError('');
+      } catch (err) {
+        setError(err.response?.data?.detail || 'Unable to fetch candidate data');
       } finally {
-        setLoadingHistory(false);
+        setLoading(false);
       }
     };
 
-    fetchAssignments();
-    fetchHistory();
+    fetchData();
   }, [user]);
 
   const handleStart = async (interview) => {
+    setStartingInterviewId(interview.id);
+    setError('');
     try {
-      setActiveInterviewId(interview.id);
       const { data } = await api.post(`/api/candidate/interviews/${interview.id}/start`, {
         candidate_id: user.user_id,
       });
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8001';
-      const apiUrl = new URL(apiBase);
-      const apiPort = apiUrl.port || (apiUrl.protocol === 'https:' ? '443' : '80');
-      const workspaceBase =
-        import.meta.env.VITE_WORKSPACE_BASE_URL ||
-        `${window.location.protocol}//${window.location.hostname}:8080/hr_agent/client/index.html`;
-      const workspaceUrl = new URL(workspaceBase, window.location.origin);
-      workspaceUrl.searchParams.set('api_host', apiUrl.hostname);
-      workspaceUrl.searchParams.set('api_port', apiPort);
-      workspaceUrl.searchParams.set('session_id', data.session.session_id);
-      workspaceUrl.searchParams.set('candidate_id', user.user_id);
-      workspaceUrl.searchParams.set('candidate_name', user.username);
-      workspaceUrl.searchParams.set('interview_id', interview.id);
-      workspaceUrl.searchParams.set('interview_title', interview.title);
-      window.open(workspaceUrl.toString(), '_blank', 'noopener');
+      navigate('/workspace', { state: { session: data.session, interview: data.interview } });
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Unable to start interview');
-    } finally {
-      setActiveInterviewId(null);
+      setError(err.response?.data?.detail || 'Could not start the interview session.');
+      setStartingInterviewId(null);
+    }
+  };
+  
+  const getStatusChipColor = (status) => {
+    switch (status) {
+      case 'accepted':
+        return 'success';
+      case 'rejected':
+        return 'error';
+      default:
+        return 'warning';
     }
   };
 
   return (
     <>
-      <Navbar subtitle="Candidate Workspace" />
-      <main className="container">
-        <section className="card">
-          <h2>Assigned Interviews</h2>
-          <p className="muted">You will only see interviews that are currently active for your account.</p>
-          {loadingAssignments && <p>Loading interviews...</p>}
-          {error && <div className="error-banner">{error}</div>}
-          <div className="grid">
-            {interviews.map((interview) => (
-              <InterviewCard
-                key={interview.id}
-                interview={interview}
-                onStart={handleStart}
-                isStarting={activeInterviewId === interview.id}
-                status={completedIds.has(interview.id) ? 'done' : 'pending'}
-              />
-            ))}
-          </div>
-          {!loadingAssignments && !interviews.length && (
-            <p className="muted">Your admin has not assigned any interviews yet.</p>
-          )}
-        </section>
-        <section className="card" style={{ marginTop: '1.5rem' }}>
-          <h2>Previous Interviews</h2>
-          {loadingHistory && <p>Loading history...</p>}
-          {!loadingHistory && history.length === 0 && (
-            <p className="muted">No interviews completed yet.</p>
-          )}
-          {!loadingHistory && history.length > 0 && (
-            <div className="list">
-              {history.map((result) => (
-                <article className="list-item" key={result.session_id}>
-                  <div>
-                    <h4>{result.interview_title || result.interview_id}</h4>
-                    <p className="muted">
-                      {new Date(result.timestamp).toLocaleString()} · Avg Score:{' '}
-                      {result.scores?.average ?? '—'}
-                    </p>
-                  </div>
-                  <div className="list-item__actions">
-                    <span className={`status ${result.status || 'pending'}`}>
-                      {result.status || 'pending'}
-                    </span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      </main>
+      <Navbar />
+      <Container component="main" maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Box sx={{ mb: 5 }}>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Welcome, {user?.username || 'Candidate'}!
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Here are your assigned and completed interviews.
+          </Typography>
+        </Box>
+
+        {loading && <CircularProgress />}
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+        {!loading && (
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={7}>
+              <Typography variant="h5" component="h2" gutterBottom>
+                Assigned Interviews
+              </Typography>
+              {!interviews.length ? (
+                <Alert severity="info">You have no pending interviews at this time.</Alert>
+              ) : (
+                <Grid container spacing={3}>
+                  {interviews.map((interview) => (
+                    <Grid item xs={12} sm={6} key={interview.id}>
+                      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        <CardContent sx={{ flexGrow: 1 }}>
+                          <Typography variant="h6" component="h3">{interview.title}</Typography>
+                          <Typography variant="body2" color="text.secondary">{interview.description}</Typography>
+                        </CardContent>
+                        <CardActions>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => handleStart(interview)}
+                            disabled={startingInterviewId === interview.id}
+                          >
+                            {startingInterviewId === interview.id ? <CircularProgress size={20} color="inherit" /> : 'Start Interview'}
+                          </Button>
+                        </CardActions>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+            </Grid>
+            <Grid item xs={12} md={5}>
+              <Typography variant="h5" component="h2" gutterBottom>
+                Interview History
+              </Typography>
+              <Card>
+                {!history.length ? (
+                  <CardContent>
+                    <Typography color="text.secondary">No interviews completed yet.</Typography>
+                  </CardContent>
+                ) : (
+                  <List disablePadding>
+                    {history.map((result, index) => (
+                      <React.Fragment key={result.session_id}>
+                        <ListItem>
+                          <ListItemText
+                            primary={result.interview_title || result.interview_id}
+                            secondary={`Completed: ${new Date(result.timestamp).toLocaleDateString()}`}
+                          />
+                           <Chip
+                            label={result.status || 'pending'}
+                            color={getStatusChipColor(result.status)}
+                            size="small"
+                          />
+                        </ListItem>
+                        {index < history.length - 1 && <Divider />}
+                      </React.Fragment>
+                    ))}
+                  </List>
+                )}
+              </Card>
+            </Grid>
+          </Grid>
+        )}
+      </Container>
     </>
   );
 };

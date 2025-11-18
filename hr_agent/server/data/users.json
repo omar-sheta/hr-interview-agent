@@ -10,5 +10,12 @@
     "username": "omar",
     "password": "omar",
     "role": "candidate"
+  },
+  {
+    "id": "aaf1f0d9-962f-4631-bd99-796eca5e7f5e",
+    "username": "joe",
+    "password": "joe123",
+    "role": "candidate",
+    "created_at": "2025-11-17T19:20:25.038450"
   }
 ]

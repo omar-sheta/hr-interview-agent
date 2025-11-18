@@ -441,6 +441,10 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class SignUpRequest(BaseModel):
+    username: str
+    password: str
+
 
 class CandidateInterviewStartRequest(BaseModel):
     candidate_id: str
@@ -527,6 +531,25 @@ async def login(request: LoginRequest):
         "message": "Login successful"
     }
 
+@app.post("/api/signup")
+async def signup(request: SignUpRequest):
+    """Register a new candidate user."""
+    existing_user = data_manager.get_user_by_username(request.username)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    
+    new_user = data_manager.create_user(request.username, request.password, role="candidate")
+    if not new_user:
+        raise HTTPException(status_code=500, detail="Failed to create user")
+    
+    return {
+        "success": True,
+        "message": "User registered successfully. Please log in.",
+        "user_id": new_user["id"],
+        "username": new_user["username"],
+        "role": new_user["role"],
+    }
+
 
 @app.post("/api/logout")
 async def logout():
@@ -534,24 +557,50 @@ async def logout():
     return {"success": True, "message": "Logged out"}
 
 
+@app.get("/api/candidates")
+async def list_all_candidates():
+    """Return all candidate users for admin to assign to interviews."""
+    all_users = data_manager.load_users()
+    candidates = [
+        {"id": u["id"], "username": u["username"]}
+        for u in all_users
+        if u.get("role") == "candidate"
+    ]
+    return {"candidates": candidates}
+
+
 @app.get("/api/candidate/interviews")
 async def list_candidate_interviews(candidate_id: str = Query(..., description="Candidate user id")):
     """Return active interviews a candidate is allowed to access."""
     candidate = _require_candidate(candidate_id)
+    
+    # Load results once and filter for this candidate
+    all_results = data_manager.load_results()
     completed_ids = {
         str(result.get("interview_id"))
-        for result in data_manager.load_results()
+        for result in all_results
         if str(result.get("candidate_id")) == str(candidate["id"])
     }
+    
+    # Load interviews and filter efficiently
     allowed_interviews = []
-    for interview in data_manager.load_interviews():
+    all_interviews = data_manager.load_interviews()
+    candidate_id_str = str(candidate["id"])
+    
+    for interview in all_interviews:
+        # Skip if not active
+        if not interview.get("active"):
+            continue
+            
+        # Skip if already completed
+        if str(interview.get("id")) in completed_ids:
+            continue
+            
+        # Check if candidate is allowed
         candidate_ids = _normalize_ids(interview.get("allowed_candidate_ids"))
-        if (
-            interview.get("active")
-            and str(candidate["id"]) in candidate_ids
-            and str(interview.get("id")) not in completed_ids
-        ):
+        if candidate_id_str in candidate_ids:
             allowed_interviews.append(interview)
+    
     return {"interviews": allowed_interviews}
 
 
@@ -559,19 +608,24 @@ async def list_candidate_interviews(candidate_id: str = Query(..., description="
 async def start_candidate_interview(interview_id: str, request: CandidateInterviewStartRequest):
     """Kick off an interview session that is tied to a candidate and interview record."""
     candidate = _require_candidate(request.candidate_id)
-    for result in data_manager.load_results():
-        if (
-            str(result.get("candidate_id")) == str(candidate.get("id"))
-            and str(result.get("interview_id")) == str(interview_id)
-        ):
+    
+    # Check if already completed - optimized to only check for this candidate and interview
+    all_results = data_manager.load_results()
+    candidate_id_str = str(candidate.get("id"))
+    interview_id_str = str(interview_id)
+    
+    for result in all_results:
+        if (str(result.get("candidate_id")) == candidate_id_str and 
+            str(result.get("interview_id")) == interview_id_str):
             raise HTTPException(status_code=400, detail="Interview already completed.")
+    
     interview = data_manager.get_interview(interview_id)
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
     if not interview.get("active", False):
         raise HTTPException(status_code=400, detail="Interview is not active")
     candidate_ids = _normalize_ids(interview.get("allowed_candidate_ids"))
-    if str(candidate["id"]) not in candidate_ids:
+    if candidate_id_str not in candidate_ids:
         raise HTTPException(status_code=403, detail="Candidate is not allowed for this interview")
 
     config = interview.get("config") or {}

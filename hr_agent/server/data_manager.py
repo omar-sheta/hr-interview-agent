@@ -26,6 +26,10 @@ class DataManager:
         self.interviews_file = self.base_path / "interviews.json"
         self.results_file = self.base_path / "results.json"
         
+        # Simple cache with modification time tracking
+        self._cache = {}
+        self._cache_mtime = {}
+        
         # Ensure directories exist
         for path in [self.sessions_path, self.transcripts_path, self.audio_path]:
             path.mkdir(parents=True, exist_ok=True)
@@ -40,28 +44,42 @@ class DataManager:
     # ------------------------------------------------------------------
     # JSON helpers for lightweight persistence
     # ------------------------------------------------------------------
-    def _load_json_list(self, file_path: Path) -> List[Dict[str, Any]]:
+    def _load_json_list(self, file_path: Path) -> list[dict]:
+        """Load list of dictionaries from a JSON file with caching."""
         try:
+            file_key = str(file_path)
+            
+            # Check if file exists
+            if not file_path.exists():
+                return []
+            
+            # Get current modification time
+            current_mtime = file_path.stat().st_mtime
+            
+            # Return cached data if file hasn't changed
+            if file_key in self._cache and file_key in self._cache_mtime:
+                if self._cache_mtime[file_key] == current_mtime:
+                    return self._cache[file_key]
+            
+            # Load from file and update cache
             with open(file_path, "r") as handle:
                 data = json.load(handle)
-                if isinstance(data, list):
-                    return data
-                return []
-        except FileNotFoundError:
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(file_path, "w") as handle:
-                json.dump([], handle)
-            return []
-        except json.JSONDecodeError:
-            # Reset corrupted file
-            with open(file_path, "w") as handle:
-                json.dump([], handle)
+                self._cache[file_key] = data
+                self._cache_mtime[file_key] = current_mtime
+                return data
+        except (FileNotFoundError, json.JSONDecodeError):
             return []
 
-    def _save_json_list(self, file_path: Path, payload: List[Dict[str, Any]]) -> None:
+    def _save_json_list(self, file_path: Path, data: list[dict]) -> None:
+        """Save list of dictionaries to a JSON file and update cache."""
         file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(file_path, "w") as handle:
-            json.dump(payload, handle, indent=2)
+            json.dump(data, handle, indent=2)
+        
+        # Update cache after write
+        file_key = str(file_path)
+        self._cache[file_key] = data
+        self._cache_mtime[file_key] = file_path.stat().st_mtime
 
     # Users ----------------------------------------------------------------
     def load_users(self) -> List[Dict[str, Any]]:
@@ -82,6 +100,24 @@ class DataManager:
             if str(user.get("username", "")).lower() == username:
                 return user
         return None
+
+    def create_user(self, username: str, password: str, role: str = "candidate") -> Optional[Dict[str, Any]]:
+        """Create a new user and save to users.json. Returns the new user or None if username exists."""
+        users = self.load_users()
+        if self.get_user_by_username(username):
+            return None  # Username already exists
+
+        new_user = {
+            "id": str(uuid.uuid4()),
+            "username": username,
+            "password": password,  # Storing as plain text for now, consider hashing in production
+            "role": role,
+            "created_at": datetime.now().isoformat(),
+        }
+        users.append(new_user)
+        self.save_users(users)
+        print(f"➕ Created new user: {username} with role {role}")
+        return new_user
 
     # Interviews ------------------------------------------------------------
     def load_interviews(self) -> List[Dict[str, Any]]:

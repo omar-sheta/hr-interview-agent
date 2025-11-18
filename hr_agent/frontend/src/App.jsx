@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage.jsx';
+import SignUpPage from './pages/SignUpPage.jsx';
 import CandidateDashboard from './pages/CandidateDashboard.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminResultsPage from './pages/AdminResultsPage.jsx';
-import InterviewPage from './pages/InterviewPage.jsx';
+import WorkspacePage from './pages/WorkspacePage.jsx';
 import NotFound from './pages/NotFound.jsx';
 import LogoutPage from './pages/LogoutPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
@@ -13,6 +14,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignUpPage />} />
       <Route
         path="/candidate"
         element={(
@@ -22,10 +24,10 @@ function App() {
         )}
       />
       <Route
-        path="/candidate/interview"
+        path="/workspace"
         element={(
           <ProtectedRoute allowedRoles={['candidate']}>
-            <InterviewPage />
+            <WorkspacePage />
           </ProtectedRoute>
         )}
       />

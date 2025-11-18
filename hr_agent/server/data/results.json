@@ -68,68 +68,68 @@
     },
     "summary": "Interview completed with average score of 1.0/10",
     "id": "a1970329-683c-434d-92bf-2b2a659a5864",
-    "status": "pending"
+    "status": "accepted"
   },
   {
-    "session_id": "5401e8a4-45a0-4180-a766-742e5acf2f3c",
+    "session_id": "1b1d64af-88f2-405c-9ef5-015c1ffb8496",
     "candidate_id": "candidate-1",
     "candidate_username": "omar",
     "interview_id": "int-5afe1215-b50f-4cb5-aa66-923079c5fc04",
     "interview_title": "Backend Engineer Screening",
-    "timestamp": "2025-11-17T17:04:06.853337",
+    "timestamp": "2025-11-17T19:49:15.688727",
     "answers": [
       {
         "question_index": 0,
-        "question": "Describe a time you designed and implemented a REST API, detailing your considerations for scalability and maintainability?",
-        "transcript": "I don't recall any experience doing this. What do you think I should do? But I did it very well. Thank you.",
-        "transcript_id": "5401e8a4-45a0-4180-a766-742e5acf2f3c_0_1763416859"
+        "question": "Describe a time you had to optimize a slow-performing API, what tools did you use, and what was the outcome?",
+        "transcript": "used rainco",
+        "transcript_id": "1b1d64af-88f2-405c-9ef5-015c1ffb8496_0_1763426885"
       },
       {
         "question_index": 1,
-        "question": "How do you approach debugging and troubleshooting performance issues in a distributed microservices architecture?",
-        "transcript": "I do it one by one, have a plan for each one, then I have an integration plan for all of them together. And if one fails, then we fix it first before we integrate it.",
-        "transcript_id": "5401e8a4-45a0-4180-a766-742e5acf2f3c_1_1763416937"
+        "question": "How do you approach designing a scalable microservice architecture, considering factors like data consistency and fault tolerance?",
+        "transcript": "I've been fanged.",
+        "transcript_id": "1b1d64af-88f2-405c-9ef5-015c1ffb8496_1_1763426913"
       },
       {
         "question_index": 2,
-        "question": "Explain your experience with database schema design and optimization for high-volume data storage and retrieval?",
-        "transcript": "\u0627\u0644\u062d\u0642\u064a\u0642\u0629 \u0623\u0646\u0627 \u0639\u0645\u0631\u064a \u0645\u0627 \u0627\u0633\u062a\u0639\u0645\u0644\u062a \u0642\u0648\u0627\u0639\u062f \u0628\u064a\u0627\u0646\u0627\u062a \u062e\u0627\u0644\u0635 \u0648\u0645\u0627 \u0644\u064a\u0634 \u062f\u0639\u0648\u0629 \u0628\u0627\u0644\u0645\u0648\u0636\u0648\u0639 \u062f\u0647",
-        "transcript_id": "5401e8a4-45a0-4180-a766-742e5acf2f3c_2_1763417007"
+        "question": "Explain your experience with different database technologies and when you would choose one over another for a specific application?",
+        "transcript": "I don't know anything you're talking about.",
+        "transcript_id": "1b1d64af-88f2-405c-9ef5-015c1ffb8496_2_1763426933"
       }
     ],
     "feedback": [
       {
         "question_index": 0,
-        "feedback": "This response is extremely poor. The candidate admits to lacking the requested experience, then contradicts themselves by claiming to have done it \"very well\" and asking *me* what they should do \u2013 demonstrating a complete lack of self-awareness and professionalism.",
-        "strengths": "None apparent in this response.",
-        "areas_for_improvement": "Everything. The candidate needs to be honest about skill gaps, demonstrate some level of technical understanding (even if admitting lack of direct experience), and exhibit professional communication. They should *never* turn the question back to the interviewer or claim success where none exists.",
-        "score": 1
+        "feedback": "This response is woefully inadequate. Simply stating \"used rainco\" provides absolutely no information relevant to the question asked and demonstrates zero technical understanding or problem-solving ability. It fails to address *any* aspect of the prompt.",
+        "strengths": "None discernible from this response.",
+        "areas_for_improvement": "Everything. The candidate needs to provide a complete answer detailing a specific situation, the tools *actually* used for API optimization (e.g., profiling tools, load testing tools, database query analyzers), the steps taken to identify the bottleneck, and quantifiable results demonstrating the outcome of their optimization efforts. They need to demonstrate they understand what API optimization *is*.",
+        "score": 2.0
       },
       {
         "question_index": 1,
-        "feedback": "This response is very high-level and lacks the depth expected for a troubleshooting discussion in a microservices environment. While the candidate mentions a planned approach, it\u2019s incredibly generic and doesn\u2019t demonstrate a solid understanding of the complexities involved in debugging distributed systems. It feels like a description of *a* process, not *the* process for this specific, challenging scenario.",
-        "strengths": "The candidate demonstrates a logical, iterative approach \u2013 tackling issues one by one and prioritizing integration after fixes. They acknowledge the need for a plan, which is a good starting point.",
-        "areas_for_improvement": "The response lacks any technical detail. The candidate should have mentioned tools (logging, tracing, metrics), specific strategies (identifying bottlenecks, correlating requests across services, canary deployments), or even a basic understanding of how to isolate failures in a distributed system. Providing a specific example of a past troubleshooting experience would have significantly improved the answer.",
-        "score": 4.0
+        "feedback": "This response is completely inadequate and unprofessional. Saying \"I've been fanged\" doesn't address the question at all and demonstrates a lack of seriousness and respect for the interview process. It reveals zero technical understanding or ability to articulate a solution.",
+        "strengths": "None.",
+        "areas_for_improvement": "Everything. The candidate needs to prepare for technical interviews, understand the question being asked, and provide a relevant, coherent, and professional response. They should also refrain from using nonsensical or inappropriate language.",
+        "score": 1
       },
       {
         "question_index": 2,
-        "feedback": "This response is extremely poor. The candidate directly states they have *no* experience with database schema design or optimization, which is a critical skill for the role implied by the question. This demonstrates a complete lack of relevant qualifications.",
-        "strengths": "Honesty (though brutally so).",
-        "areas_for_improvement": "Everything. The candidate needs to either be truthful about their lack of experience *and* express a willingness to learn, or (preferably) not apply for roles requiring this skillset. They should *never* directly state they have no experience when asked about a core competency.",
+        "feedback": "This response is extremely poor and demonstrates a complete lack of relevant knowledge for the question asked. Admitting to knowing nothing is not a constructive answer in an interview, especially when the question pertains to a core skill potentially required for the role.",
+        "strengths": "Honesty (though poorly executed).",
+        "areas_for_improvement": "Technical knowledge, interview preparedness, ability to articulate even a basic understanding or willingness to learn, and professional communication. The candidate should *never* state they know nothing; instead, they should acknowledge a gap and express eagerness to learn or describe related skills.",
         "score": 1
       }
     ],
     "scores": {
-      "average": 2.0,
+      "average": 1.3,
       "details": [
         {
           "question_index": 0,
-          "score": 1
+          "score": 2.0
         },
         {
           "question_index": 1,
-          "score": 4.0
+          "score": 1
         },
         {
           "question_index": 2,
@@ -137,8 +137,79 @@
         }
       ]
     },
-    "summary": "Interview completed with average score of 2.0/10",
-    "status": "pending",
-    "id": "7e534971-206e-43db-89cc-7c55a1868cf6"
+    "summary": "Interview completed with average score of 1.3/10",
+    "status": "rejected",
+    "id": "fba40401-dbf4-4d80-bed3-f1e03a9beec2"
+  },
+  {
+    "session_id": "667a8068-c9b1-4f3d-ae48-3e49e74088fd",
+    "candidate_id": "aaf1f0d9-962f-4631-bd99-796eca5e7f5e",
+    "candidate_username": "joe",
+    "interview_id": "int-2",
+    "interview_title": "Frontend Engineer Screen",
+    "timestamp": "2025-11-17T19:56:06.520229",
+    "answers": [
+      {
+        "question_index": 0,
+        "question": "How do you optimize the performance of a React application?",
+        "transcript": "I use optimization techniques.",
+        "transcript_id": "667a8068-c9b1-4f3d-ae48-3e49e74088fd_0_1763427267"
+      },
+      {
+        "question_index": 1,
+        "question": "Describe a challenging bug you encountered in a frontend project and how you resolved it.",
+        "transcript": "It was fine, it was okay.",
+        "transcript_id": "667a8068-c9b1-4f3d-ae48-3e49e74088fd_1_1763427316"
+      },
+      {
+        "question_index": 1,
+        "question": "Describe a challenging bug you encountered in a frontend project and how you resolved it.",
+        "transcript": "I try to include everyone, to include deaf, to include blind people.",
+        "transcript_id": "667a8068-c9b1-4f3d-ae48-3e49e74088fd_1_1763427338"
+      }
+    ],
+    "feedback": [
+      {
+        "question_index": 0,
+        "feedback": "This response is incredibly vague and unhelpful. Simply stating \"I use optimization techniques\" demonstrates no actual understanding of *how* to optimize a React application and fails to address the question's intent. It lacks any substance and doesn't showcase any technical knowledge.",
+        "strengths": "The candidate technically *answered* the question, albeit minimally.",
+        "areas_for_improvement": "The candidate needs to demonstrate actual technical knowledge of React optimization techniques (e.g., code splitting, memoization, lazy loading, virtualization, efficient state management). They should provide specific examples of techniques they've used and *how* they improved performance. The response needs significantly more detail and clarity.",
+        "score": 2.0
+      },
+      {
+        "question_index": 1,
+        "feedback": "This response is incredibly weak and fails to address the question meaningfully. Saying \"it was fine, it was okay\" demonstrates a lack of engagement and provides absolutely no insight into the candidate's technical skills or problem-solving abilities.",
+        "strengths": "None apparent from this response.",
+        "areas_for_improvement": "The candidate needs to *actually answer the question*. They should provide a specific example of a bug, detail the technical challenges it presented, and explain the steps they took to diagnose and resolve it. They need to demonstrate technical knowledge, communication skills, and a logical problem-solving approach \u2013 all completely absent here.",
+        "score": 2.0
+      },
+      {
+        "question_index": 1,
+        "feedback": "This response completely misses the mark of the question. The candidate appears to have misunderstood the prompt, answering with a statement about accessibility \u2013 while a valuable topic \u2013 it\u2019s irrelevant to a technical bug-solving question. There is zero demonstration of technical ability or problem-solving skills.",
+        "strengths": "The candidate clearly values inclusivity, which is a positive attribute.",
+        "areas_for_improvement": "The candidate needs to *actively listen* to the question and ensure they understand what is being asked. They need to focus on providing a *technical* answer when asked about technical skills, and practice relating their experiences to the specific prompt.",
+        "score": 1
+      }
+    ],
+    "scores": {
+      "average": 1.7,
+      "details": [
+        {
+          "question_index": 0,
+          "score": 2.0
+        },
+        {
+          "question_index": 1,
+          "score": 2.0
+        },
+        {
+          "question_index": 1,
+          "score": 1
+        }
+      ]
+    },
+    "summary": "Interview completed with average score of 1.7/10",
+    "status": "accepted",
+    "id": "93dff92c-b34b-41c3-b02f-62b68c5d597d"
   }
 ]
