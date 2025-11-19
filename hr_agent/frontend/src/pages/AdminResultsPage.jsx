@@ -22,6 +22,12 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  TextField,
+  InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
 } from '@mui/material';
 import {
   ExpandMore,
@@ -30,6 +36,8 @@ import {
   StarBorder,
   ThumbUpOutlined,
   ThumbDownOutlined,
+  Search,
+  Delete,
 } from '@mui/icons-material';
 
 const AdminResultsPage = () => {
@@ -38,6 +46,9 @@ const AdminResultsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [groupBy, setGroupBy] = useState('interview'); // 'interview' | 'user'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [resultToDelete, setResultToDelete] = useState(null);
 
   const loadResults = async () => {
     if (!user) return;
@@ -58,7 +69,17 @@ const AdminResultsPage = () => {
     loadResults();
   }, [user]);
 
-  const groupedResults = (results || []).reduce((acc, r) => {
+  const filteredResults = results.filter((r) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      (r.interview_title || '').toLowerCase().includes(query) ||
+      (r.candidate_username || '').toLowerCase().includes(query) ||
+      (r.candidate_id || '').toLowerCase().includes(query)
+    );
+  });
+
+  const groupedResults = (filteredResults || []).reduce((acc, r) => {
     const key = groupBy === 'interview' ? (r.interview_title || 'Unknown Interview') : (r.candidate_username || r.candidate_id || 'Unknown Candidate');
     if (!acc[key]) acc[key] = [];
     acc[key].push(r);
@@ -80,6 +101,31 @@ const AdminResultsPage = () => {
       console.error('Failed to update status:', err);
       setError(err.response?.data?.detail || 'Could not update status.');
     }
+  };
+
+  const handleDeleteClick = (result) => {
+    setResultToDelete(result);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!resultToDelete) return;
+    try {
+      await api.delete(`/api/admin/results/${resultToDelete.session_id}`, {
+        params: { admin_id: user.user_id },
+      });
+      await loadResults();
+      setDeleteConfirmOpen(false);
+      setResultToDelete(null);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to delete result');
+      setDeleteConfirmOpen(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmOpen(false);
+    setResultToDelete(null);
   };
 
   const getStatusChipColor = (status) => {
@@ -113,6 +159,20 @@ const AdminResultsPage = () => {
               <MenuItem value="user">User</MenuItem>
             </Select>
           </FormControl>
+          <TextField
+            size="small"
+            placeholder="Search results..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ minWidth: 250 }}
+          />
           <Button component={Link} to="/admin" variant="outlined">
             Back to Dashboard
           </Button>
@@ -168,6 +228,14 @@ const AdminResultsPage = () => {
                             >
                               Reject
                             </Button>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={(e) => { e.stopPropagation(); handleDeleteClick(result); }}
+                              title="Delete result"
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
                           </Grid>
                         </Grid>
                       </AccordionSummary>
@@ -184,19 +252,19 @@ const AdminResultsPage = () => {
                                       <Typography variant="subtitle1" sx={{ fontWeight: 'bold', flex: 1 }}>
                                         Q{answer.question_index + 1}: {answer.question}
                                       </Typography>
-                                      <Chip 
-                                        label={`Score: ${feedback.score || 'N/A'}`} 
-                                        size="small" 
+                                      <Chip
+                                        label={`Score: ${feedback.score || 'N/A'}`}
+                                        size="small"
                                         color={feedback.score >= 7 ? 'success' : feedback.score >= 5 ? 'warning' : 'error'}
                                       />
                                     </Box>
-                                    
+
                                     <Typography variant="body2" color="text.secondary" sx={{ my: 1.5, fontStyle: 'italic', pl: 2, borderLeft: '3px solid #e0e0e0' }}>
                                       "{answer.transcript}"
                                     </Typography>
-                                    
+
                                     <Divider sx={{ my: 2 }} />
-                                    
+
                                     <Stack spacing={1.5}>
                                       {feedback.feedback && (
                                         <Box>
@@ -206,7 +274,7 @@ const AdminResultsPage = () => {
                                           <Typography variant="body2">{feedback.feedback}</Typography>
                                         </Box>
                                       )}
-                                      
+
                                       {feedback.strengths && (
                                         <Box>
                                           <Typography variant="caption" color="success.main" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
@@ -215,7 +283,7 @@ const AdminResultsPage = () => {
                                           <Typography variant="body2">{feedback.strengths}</Typography>
                                         </Box>
                                       )}
-                                      
+
                                       {feedback.areas_for_improvement && (
                                         <Box>
                                           <Typography variant="caption" color="warning.main" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
@@ -240,6 +308,21 @@ const AdminResultsPage = () => {
           ))}
         </Stack>
       </Container>
+
+      <Dialog open={deleteConfirmOpen} onClose={handleCancelDelete}>
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the result for {resultToDelete?.candidate_username}? This action cannot be undone.
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
+            <Button onClick={handleCancelDelete}>Cancel</Button>
+            <Button variant="contained" color="error" onClick={handleConfirmDelete}>
+              Delete
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

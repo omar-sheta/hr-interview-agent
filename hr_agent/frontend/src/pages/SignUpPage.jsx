@@ -19,6 +19,7 @@ const SignUpPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -28,7 +29,7 @@ const SignUpPage = () => {
     setError('');
     setSuccess('');
 
-    if (!username || !password || !confirmPassword) {
+    if (!username || !password || !confirmPassword || !email) {
       setError('All fields are required.');
       return;
     }
@@ -40,10 +41,16 @@ const SignUpPage = () => {
       setError('Password must be at least 6 characters long.');
       return;
     }
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
 
     setLoading(true);
     try {
-      const response = await api.post('/api/signup', { username, password });
+      const response = await api.post('/api/signup', { username, password, email });
       if (response.data.success) {
         setSuccess('Registration successful! Redirecting to login...');
         setTimeout(() => {
@@ -87,6 +94,30 @@ const SignUpPage = () => {
                   autoFocus
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="email"
+                  label="Email Address"
+                  name="email"
+                  autoComplete="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="email"
+                  label="Email Address"
+                  name="email"
+                  autoComplete="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
                 <TextField
                   margin="normal"

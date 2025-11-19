@@ -17,7 +17,7 @@ NC='\033[0m' # No Color
 # Ports and Paths
 SERVER_PORT=8001
 HTTPS_API_PORT=8002
-CLIENT_HTTP_PORT=8080
+CLIENT_HTTP_PORT=5173
 CLIENT_HTTPS_PORT=8443
 SERVER_BIND_HOST="0.0.0.0"
 OLLAMA_PORT=11434
@@ -29,7 +29,7 @@ CLIENT_SERVER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$CLIENT_SERVER_DIR")"
 # The script runs inside the hr_agent folder, so point server and client directly
 SERVER_DIR="$CLIENT_SERVER_DIR/server"
-CLIENT_DIR="$CLIENT_SERVER_DIR/client"
+CLIENT_DIR="$CLIENT_SERVER_DIR/frontend"
 CERT_PATH="$CLIENT_SERVER_DIR/cert.pem"
 KEY_PATH="$CLIENT_SERVER_DIR/key.pem"
 
@@ -209,6 +209,11 @@ check_dependencies() {
         exit 1
     fi
     
+    if ! command -v npm &> /dev/null; then
+        echo -e "${RED}npm is required but not installed. Please install Node.js.${NC}"
+        exit 1
+    fi
+    
     # Always activate the main venv from /Users/Omar/Desktop/hr_agent_final_attempt/venv
     if [ -f "/Users/Omar/Desktop/hr_agent_final_attempt/venv/bin/activate" ]; then
         source "/Users/Omar/Desktop/hr_agent_final_attempt/venv/bin/activate"
@@ -226,6 +231,13 @@ check_dependencies() {
             exit 1
         fi
     fi
+    
+    # Check Node.js dependencies
+    if [ ! -d "$CLIENT_DIR/node_modules" ]; then
+        echo -e "${YELLOW}Installing Node.js dependencies...${NC}"
+        (cd "$CLIENT_DIR" && npm install)
+    fi
+    
     echo -e "${GREEN}Dependencies are satisfied.${NC}"
 }
 
@@ -264,14 +276,14 @@ start_servers() {
     PIDS+=($!)
     wait_for_service "http://127.0.0.1:$SERVER_PORT/health" "HTTP API Server" || cleanup_on_exit
 
-    # 2. Start Static HTTP Client Server
-    echo "Starting Static HTTP Client Server..."
-    (cd "$PROJECT_ROOT" && python3 -m http.server "$CLIENT_HTTP_PORT" --bind "$SERVER_BIND_HOST" >/tmp/hr_agent_client_ui.log 2>&1) &
+    # 2. Start Vite Dev Client Server
+    echo "Starting Vite Dev Client Server..."
+    (cd "$CLIENT_DIR" && npm run dev -- --host "$SERVER_BIND_HOST" --port "$CLIENT_HTTP_PORT" >/tmp/hr_agent_client_ui.log 2>&1) &
     PIDS+=($!)
-    # Client files are served under /hr_agent/client/
-    wait_for_service "http://127.0.0.1:$CLIENT_HTTP_PORT/hr_agent/client/" "Static HTTP Server" || cleanup_on_exit
+    # Vite serves from root
+    wait_for_service "https://127.0.0.1:$CLIENT_HTTP_PORT" "Vite Dev Server" "-k" || cleanup_on_exit
 
-    # 3. Start HTTPS servers (if certificate is available)
+    # 3. Start HTTPS API Server (if certificate is available)
     if ensure_certificate; then
         echo "Starting HTTPS API Server..."
         # Run from project root so package imports and relative imports resolve properly
@@ -280,11 +292,8 @@ start_servers() {
         PIDS+=($!)
         wait_for_service "https://127.0.0.1:$HTTPS_API_PORT/health" "HTTPS API Server" "-k" || cleanup_on_exit
         
-        echo "Starting Static HTTPS Client Server..."
-        python3 "$CLIENT_SERVER_DIR/serve_https.py" --port "$CLIENT_HTTPS_PORT" --directory "$PROJECT_ROOT" --cert "$CERT_PATH" --key "$KEY_PATH" >/tmp/hr_agent_client_ui_https.log 2>&1 &
-        PIDS+=($!)
-        # Client files are served under /hr_agent/client/
-        wait_for_service "https://127.0.0.1:$CLIENT_HTTPS_PORT/hr_agent/client/" "Static HTTPS Server" "-k" || cleanup_on_exit
+        # Note: HTTPS client not started as Vite dev server does not support HTTPS by default
+        # To enable HTTPS for client, configure Vite with SSL certificates in vite.config.js
     fi
 }
 
@@ -292,22 +301,16 @@ start_servers() {
 show_info() {
     local local_ip
     local_ip=$(get_local_ip)
-    local client_path="/hr_agent/client/index.html"
+    local client_path="/"
     echo
     echo "=================================================="
     echo -e "${GREEN}All services are running!${NC}"
     echo "=================================================="
     echo
     echo -e "${BLUE}Web Client URLs:${NC}"
-    echo "   - Local:    http://127.0.0.1:$CLIENT_HTTP_PORT$client_path"
+    echo "   - Local:    https://127.0.0.1:$CLIENT_HTTP_PORT$client_path"
     if [[ "$local_ip" != "127.0.0.1" ]]; then
-        echo "   - Network:  http://$local_ip:$CLIENT_HTTP_PORT$client_path"
-    fi
-    if is_port_in_use "$CLIENT_HTTPS_PORT"; then
-        echo "   - Local TLS: https://127.0.0.1:$CLIENT_HTTPS_PORT$client_path"
-        if [[ "$local_ip" != "127.0.0.1" ]]; then
-            echo "   - Network TLS: https://$local_ip:$CLIENT_HTTPS_PORT$client_path"
-        fi
+        echo "   - Network:  https://$local_ip:$CLIENT_HTTP_PORT$client_path"
     fi
     
     echo
@@ -318,16 +321,12 @@ show_info() {
     fi
     echo
     echo -e "${YELLOW}For Network HTTPS Access:${NC}"
-    echo "   1. First visit: https://$local_ip:$HTTPS_API_PORT/health"
+    echo "   1. First visit: https://$local_ip:$CLIENT_HTTP_PORT$client_path"
     echo "   2. Accept the security warning (self-signed cert)"
-    echo "   3. Then open: https://$local_ip:$CLIENT_HTTPS_PORT$client_path"
-    echo "   4. Accept the security warning again"
-    echo
-    echo -e "${YELLOW}   Or use HTTP (no certificate needed):${NC}"
-    echo "   - http://$local_ip:$CLIENT_HTTP_PORT$client_path?api_host=$local_ip&api_port=$SERVER_PORT"
+    echo "   3. Then you can use the application with microphone access."
     echo
     echo -e "${YELLOW}Troubleshooting:${NC}"
-    echo "   - Check firewall allows ports $SERVER_PORT, $HTTPS_API_PORT, $CLIENT_HTTP_PORT, $CLIENT_HTTPS_PORT"
+    echo "   - Check firewall allows ports $SERVER_PORT, $HTTPS_API_PORT, $CLIENT_HTTP_PORT"
     echo "   - Server logs: /tmp/hr_agent_*.log"
     echo
 }
@@ -370,9 +369,9 @@ main() {
     read -p "Open web client in browser? (y/N): " -n 1 -r REPLY
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        local url_to_open="http://127.0.0.1:$CLIENT_HTTP_PORT/hr_agent/client/index.html"
+        local url_to_open="http://127.0.0.1:$CLIENT_HTTP_PORT/"
         if is_port_in_use "$CLIENT_HTTPS_PORT"; then
-            url_to_open="https://127.0.0.1:$CLIENT_HTTPS_PORT/hr_agent/client/index.html"
+            url_to_open="https://127.0.0.1:$CLIENT_HTTPS_PORT/"
         fi
         open_in_browser "$url_to_open"
     fi

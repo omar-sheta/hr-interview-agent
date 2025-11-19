@@ -1,0 +1,35 @@
+{
+  "candidate_name": "omar",
+  "job_role": "test interview",
+  "job_description": "",
+  "questions": [
+    "tq"
+  ],
+  "current_question": 1,
+  "status": "completed",
+  "question_source": "client",
+  "used_fallback": false,
+  "responses": [
+    {
+      "question_index": 0,
+      "transcript_id": "b8315f5a-92aa-40f5-aa2e-38e1dd5c499b_0_1763515891",
+      "submitted_at": "2025-11-18T20:31:32.265769"
+    }
+  ],
+  "session_id": "b8315f5a-92aa-40f5-aa2e-38e1dd5c499b",
+  "created_at": "2025-11-18T20:31:18.099155",
+  "updated_at": "2025-11-18T20:31:32.266659",
+  "candidate_id": "91a6e332-707d-499c-a46b-d4ca009dccf7",
+  "candidate_username": "omar",
+  "interview_id": "int-063db422-d460-462d-9466-da57959e1efd",
+  "interview_title": "test interview",
+  "interview_description": "",
+  "interview_config": {
+    "job_role": "",
+    "job_description": "",
+    "num_questions": 1,
+    "questions": [
+      "tq"
+    ]
+  }
+}

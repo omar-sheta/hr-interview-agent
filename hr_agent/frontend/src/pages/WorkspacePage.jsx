@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useAudioRecorder } from '../hooks/useAudioRecorder.js';
 import api from '../api/client.js';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Container,
   Card,
@@ -17,14 +18,28 @@ import {
   Paper,
   Stack,
   Chip,
+  useTheme,
+  alpha,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
-import { PlayArrow, Stop, Mic, Redo, SkipNext, Send, PlayCircleOutline } from '@mui/icons-material';
+import {
+  PlayArrowRounded,
+  StopRounded,
+  MicRounded,
+  RedoRounded,
+  SkipNextRounded,
+  SendRounded,
+  PlayCircleOutlineRounded,
+  GraphicEqRounded,
+} from '@mui/icons-material';
 
 const WorkspacePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { session, interview } = location.state || {}; // Ensure session is available
+  const theme = useTheme();
+  const { session, interview } = location.state || {};
 
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -34,7 +49,7 @@ const WorkspacePage = () => {
   const [pendingTranscriptId, setPendingTranscriptId] = useState(null);
   const [error, setError] = useState('');
   const [micLevel, setMicLevel] = useState(0);
-  
+
   const questionAudioRef = useRef(null);
 
   const handleRecordingComplete = async (audioBlob) => {
@@ -50,7 +65,7 @@ const WorkspacePage = () => {
       const { data } = await api.post('/transcribe', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
+
       setTranscription(data.transcript);
       setPendingTranscriptId(data.transcript_id);
       setStatus('transcribed');
@@ -67,11 +82,9 @@ const WorkspacePage = () => {
 
   useEffect(() => {
     if (session?.questions?.length > 0) {
-      console.log('Setting questions from session:', session.questions);
       setQuestions(session.questions);
-      setStatus('ready'); // Set to 'ready' for the "Click to Start" screen
+      setStatus('ready');
     } else {
-      console.error('Questions missing from session:', session);
       setError('Interview questions are missing.');
       setStatus('error');
     }
@@ -80,20 +93,16 @@ const WorkspacePage = () => {
         questionAudioRef.current.pause();
       }
     };
-  }, [session]); // Depend on session to ensure it's loaded
+  }, [session]);
 
-  // Generate results when interview is finished
   useEffect(() => {
     const generateResults = async () => {
       if (status === 'finished' && session && !resultsGenerated) {
         setResultsGenerated(true);
         try {
-          console.log('Generating results for session:', session.session_id);
           await api.get(`/interview/${session.session_id}/results`);
-          console.log('Results generated and saved successfully');
         } catch (err) {
           console.error('Failed to generate results:', err);
-          // Don't show error to user, results generation is background process
         }
       }
     };
@@ -110,33 +119,27 @@ const WorkspacePage = () => {
   const handlePlayQuestion = async (questionIndex = currentIndex) => {
     stopQuestionAudio();
     setStatus('playing');
-    console.log('Playing question:', questions[questionIndex]);
     try {
       const response = await api.post('/synthesize', { text: questions[questionIndex] }, { responseType: 'blob' });
-      console.log('Audio synthesized successfully');
       const url = URL.createObjectURL(response.data);
       const audio = new Audio(url);
       questionAudioRef.current = audio;
       audio.onended = () => {
-        console.log('Question audio ended, starting recording...');
         setStatus('idle');
-        // Automatically start recording after question finishes
         setTimeout(() => {
           handleStartRecording();
         }, 500);
       };
       await audio.play();
-      console.log('Audio playing');
     } catch (err) {
-      console.error('Error playing question:', err);
       setError('Could not play question audio.');
       setStatus('idle');
     }
   };
 
   const handleStartInterview = () => {
-    setStatus('idle'); // Change status from ready to idle to show interview UI
-    setTimeout(handlePlayQuestion, 100); // Play the first question after a brief delay
+    setStatus('idle');
+    setTimeout(handlePlayQuestion, 100);
   };
 
   const handleStartRecording = () => {
@@ -150,10 +153,9 @@ const WorkspacePage = () => {
   };
 
   useEffect(() => {
-    // This useEffect handles status changes based on recording state
     if (isRecording) {
       setStatus('recording');
-    } else if (status === 'recording') { // If just stopped recording, go to processing
+    } else if (status === 'recording') {
       setStatus('processing');
     }
   }, [isRecording]);
@@ -174,7 +176,7 @@ const WorkspacePage = () => {
         setCurrentIndex(nextIndex);
         setTranscription('');
         setPendingTranscriptId(null);
-        setStatus('idle'); // Return to idle state before playing next question
+        setStatus('idle');
         setTimeout(() => handlePlayQuestion(nextIndex), 100);
       } else {
         setStatus('finished');
@@ -186,14 +188,11 @@ const WorkspacePage = () => {
   };
 
   const handleSkip = async () => {
-      // Logic for skipping a question
-    setStatus('processing'); // Indicate processing for skip
+    setStatus('processing');
     try {
-      // Submit an empty/skipped response
       const formData = new FormData();
       formData.append('session_id', session.session_id);
       formData.append('question_index', currentIndex);
-      // No transcript_id for skip
       await api.post('/interview/submit', formData);
 
       if (currentIndex < questions.length - 1) {
@@ -201,31 +200,33 @@ const WorkspacePage = () => {
         setCurrentIndex(nextIndex);
         setTranscription('');
         setPendingTranscriptId(null);
-        setStatus('idle'); // Return to idle state before playing next question
+        setStatus('idle');
         setTimeout(() => handlePlayQuestion(nextIndex), 100);
       } else {
         setStatus('finished');
       }
     } catch (err) {
       setError('Failed to skip question.');
-      setStatus('idle'); // Return to idle if skip fails
+      setStatus('idle');
     }
   };
 
   const handleRedo = () => {
     setTranscription('');
     setPendingTranscriptId(null);
-    setStatus('idle'); // Go back to idle to allow re-recording
+    setStatus('idle');
   };
 
   if (!interview || !session) {
     return (
       <>
         <Navbar />
-        <Container maxWidth="sm" sx={{ mt: 4 }}>
-          <Alert severity="error">
+        <Container maxWidth="sm" sx={{ mt: 8 }}>
+          <Alert severity="error" variant="filled" sx={{ borderRadius: 2 }}>
             No interview session found. Please navigate from your dashboard.
-            <Button component={Link} to="/candidate" sx={{ mt: 2 }}>Go to Dashboard</Button>
+            <Button component={Link} to="/candidate" color="inherit" size="small" sx={{ ml: 2, fontWeight: 'bold' }}>
+              Go to Dashboard
+            </Button>
           </Alert>
         </Container>
       </>
@@ -237,117 +238,280 @@ const WorkspacePage = () => {
   const renderMainContent = () => {
     if (status === 'ready') {
       return (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <Typography variant="h4" gutterBottom>Ready to Start?</Typography>
-          <Typography color="text.secondary" sx={{ mb: 4 }}>
-            Click the button below to begin your interview.
-          </Typography>
-          <Button variant="contained" size="large" startIcon={<PlayCircleOutline />} onClick={handleStartInterview}>
-            Start Interview
-          </Button>
-          {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <Typography variant="h3" gutterBottom sx={{ fontWeight: 800, letterSpacing: '-1px' }}>
+              Ready to Start?
+            </Typography>
+            <Typography color="text.secondary" variant="h6" sx={{ mb: 6, maxWidth: 600, mx: 'auto' }}>
+              Find a quiet place. We'll ask you a series of questions. Speak clearly and take your time.
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<PlayCircleOutlineRounded />}
+              onClick={handleStartInterview}
+              sx={{
+                borderRadius: 50,
+                px: 6,
+                py: 2,
+                fontSize: '1.2rem',
+                textTransform: 'none',
+                boxShadow: '0 8px 20px rgba(0,0,0,0.2)',
+              }}
+            >
+              Start Interview
+            </Button>
+            {error && <Alert severity="error" sx={{ mt: 4, borderRadius: 2 }}>{error}</Alert>}
+          </Box>
+        </motion.div>
+      );
+    }
+
+    if (status === 'loading') {
+      return (
+        <Box sx={{ textAlign: 'center', py: 12 }}>
+          <CircularProgress size={60} thickness={4} sx={{ mb: 4, color: theme.palette.primary.main }} />
+          <Typography variant="h5" fontWeight="500">Preparing your interview...</Typography>
         </Box>
       );
     }
-    
-    if (status === 'loading') {
-        return (
-            <Box sx={{ textAlign: 'center', py: 8 }}>
-                <CircularProgress sx={{ mb: 2 }} />
-                <Typography variant="h5">Loading interview...</Typography>
-            </Box>
-        );
-    }
-
 
     return (
-      <>
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="overline" color="text.secondary">
-            Question {currentIndex + 1} of {questions.length}
-          </Typography>
-          <LinearProgress variant="determinate" value={progress} sx={{ my: 1 }} />
-          <Typography variant="h4" component="h1" sx={{ mt: 2, minHeight: '3em' }}>
-            {questions[currentIndex]}
-          </Typography>
-        </Box>
-
-        <Stack direction="row" spacing={2} sx={{ my: 4 }} justifyContent="center">
-          <Button variant="outlined" startIcon={<PlayArrow />} onClick={handlePlayQuestion} disabled={status === 'playing' || isRecording}>
-            Play 
-          </Button>
-          <Button variant="contained" color="error" startIcon={<Mic />} onClick={handleStartRecording} disabled={isRecording || status === 'playing'}>
-            Record
-          </Button>
-          <Button variant="outlined" startIcon={<Stop />} onClick={stopRecording} disabled={!isRecording}>
-            Stop
-          </Button>
-        </Stack>
-
-        {isRecording && (
-          <Box sx={{ px: 2, mb: 2 }}>
-            <LinearProgress variant="determinate" value={micLevel * 200} color="error" />
-          </Box>
-        )}
-
-        <Paper variant="outlined" sx={{ p: 2, minHeight: 150 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="overline">Your transcribed answer:</Typography>
-            <Chip label={status} size="small" color={isRecording ? 'error' : 'default'} />
-          </Stack>
-          {(status === 'processing' || status === 'loading') ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-              <CircularProgress size={24} sx={{ mr: 1 }} />
-              <Typography color="text.secondary">Processing...</Typography>
-            </Box>
-          ) : (
-            <Typography color="text.secondary" sx={{ fontStyle: transcription ? 'normal' : 'italic' }}>
-              {transcription || 'Transcription will appear here...'}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentIndex}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Box sx={{ mb: 4 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+              <Typography variant="overline" color="text.secondary" fontWeight="700" letterSpacing={1}>
+                Question {currentIndex + 1} of {questions.length}
+              </Typography>
+              <Chip label={status === 'recording' ? 'Recording...' : status} color={status === 'recording' ? 'error' : 'default'} size="small" sx={{ fontWeight: 600 }} />
+            </Stack>
+            <LinearProgress
+              variant="determinate"
+              value={progress}
+              sx={{
+                height: 8,
+                borderRadius: 4,
+                mb: 4,
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                '& .MuiLinearProgress-bar': { borderRadius: 4 }
+              }}
+            />
+            <Typography variant="h4" component="h1" sx={{ fontWeight: 700, minHeight: '3em', lineHeight: 1.3 }}>
+              {questions[currentIndex]}
             </Typography>
+          </Box>
+
+          <Stack direction="row" spacing={3} sx={{ my: 6 }} justifyContent="center" alignItems="center">
+            <Tooltip title="Replay Question">
+              <span>
+                <IconButton
+                  onClick={() => handlePlayQuestion()}
+                  disabled={status === 'playing' || isRecording}
+                  sx={{
+                    border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                    p: 1.5,
+                    '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
+                  }}
+                >
+                  <PlayArrowRounded fontSize="large" color="primary" />
+                </IconButton>
+              </span>
+            </Tooltip>
+
+            <Box sx={{ position: 'relative' }}>
+              {isRecording && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: -4,
+                    left: -4,
+                    right: -4,
+                    bottom: -4,
+                    borderRadius: '50%',
+                    border: `2px solid ${theme.palette.error.main}`,
+                    animation: 'pulse 1.5s infinite',
+                    '@keyframes pulse': {
+                      '0%': { transform: 'scale(1)', opacity: 1 },
+                      '100%': { transform: 'scale(1.2)', opacity: 0 },
+                    },
+                  }}
+                />
+              )}
+              <Button
+                variant="contained"
+                color={isRecording ? 'error' : 'primary'}
+                onClick={isRecording ? stopRecording : handleStartRecording}
+                disabled={status === 'playing'}
+                sx={{
+                  borderRadius: '50%',
+                  width: 72,
+                  height: 72,
+                  minWidth: 0,
+                  boxShadow: isRecording ? '0 0 20px rgba(231, 111, 81, 0.5)' : '0 8px 20px rgba(0,0,0,0.15)',
+                }}
+              >
+                {isRecording ? <StopRounded sx={{ fontSize: 36 }} /> : <MicRounded sx={{ fontSize: 36 }} />}
+              </Button>
+            </Box>
+          </Stack>
+
+          {isRecording && (
+            <Box sx={{ px: 4, mb: 4, textAlign: 'center' }}>
+              <Stack direction="row" alignItems="center" spacing={2} justifyContent="center">
+                <GraphicEqRounded color="error" />
+                <Box sx={{ width: '100%', maxWidth: 300 }}>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min(micLevel * 200, 100)}
+                    color="error"
+                    sx={{ height: 6, borderRadius: 3 }}
+                  />
+                </Box>
+              </Stack>
+              <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block', fontWeight: 600 }}>
+                Listening...
+              </Typography>
+            </Box>
           )}
-        </Paper>
 
-        {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              minHeight: 160,
+              borderRadius: 4,
+              backgroundColor: alpha(theme.palette.background.paper, 0.5),
+              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            <Typography variant="overline" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+              Answer Transcription
+            </Typography>
+            {(status === 'processing' || status === 'loading') ? (
+              <Stack direction="row" alignItems="center" spacing={2} sx={{ height: '100%', py: 4 }}>
+                <CircularProgress size={20} thickness={5} />
+                <Typography color="text.secondary" fontWeight="500">Processing your answer...</Typography>
+              </Stack>
+            ) : (
+              <Typography
+                color="text.primary"
+                sx={{
+                  fontStyle: transcription ? 'normal' : 'italic',
+                  fontSize: '1.1rem',
+                  lineHeight: 1.6,
+                  opacity: transcription ? 1 : 0.6
+                }}
+              >
+                {transcription || 'Your answer will be transcribed here after you stop recording...'}
+              </Typography>
+            )}
+          </Paper>
 
-        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
-          <Stack direction="row" spacing={2}>
-            <Button startIcon={<Redo />} onClick={handleRedo} disabled={!transcription || isRecording}>
-              Redo
+          {error && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <Alert severity="error" sx={{ mt: 3, borderRadius: 2 }}>{error}</Alert>
+            </motion.div>
+          )}
+
+          <Box sx={{ mt: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Button
+              startIcon={<RedoRounded />}
+              onClick={handleRedo}
+              disabled={!transcription || isRecording}
+              color="inherit"
+              sx={{ opacity: 0.7 }}
+            >
+              Redo Answer
             </Button>
-            <Box>
-              <Button startIcon={<SkipNext />} sx={{ mr: 2 }} onClick={handleSkip} disabled={isRecording}>
+            <Stack direction="row" spacing={2}>
+              <Button
+                startIcon={<SkipNextRounded />}
+                onClick={handleSkip}
+                disabled={isRecording}
+                color="inherit"
+                sx={{ opacity: 0.7 }}
+              >
                 Skip
               </Button>
-              <Button variant="contained" endIcon={<Send />} onClick={handleSubmit} disabled={!transcription || isRecording}>
-                Submit & Next
+              <Button
+                variant="contained"
+                endIcon={<SendRounded />}
+                onClick={handleSubmit}
+                disabled={!transcription || isRecording}
+                size="large"
+                sx={{
+                  px: 4,
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                }}
+              >
+                {currentIndex < questions.length - 1 ? 'Next Question' : 'Finish Interview'}
               </Button>
-            </Box>
-          </Stack>
-        </Box>
-      </>
+            </Stack>
+          </Box>
+        </motion.div>
+      </AnimatePresence>
     );
   };
 
   return (
     <>
       <Navbar />
-      <Container maxWidth="md" sx={{ my: 4 }}>
-        <Card>
-          <CardContent sx={{ p: { xs: 2, sm: 4 } }}>
-            {status === 'finished' ? (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <Typography variant="h4" gutterBottom>Interview Complete</Typography>
-                <Typography color="text.secondary" sx={{ mb: 4 }}>
-                  Thank you for completing the interview. Your responses have been submitted.
-                </Typography>
-                <Button variant="contained" onClick={() => navigate('/candidate')}>
-                  Back to Dashboard
-                </Button>
-              </Box>
-            ) : renderMainContent()}
-          </CardContent>
-        </Card>
-      </Container>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(135deg, #121212 0%, #1e1e1e 100%)'
+            : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+          pt: 4,
+          pb: 8,
+        }}
+      >
+        <Container maxWidth="md">
+          <Card
+            sx={{
+              borderRadius: 6,
+              backdropFilter: 'blur(20px)',
+              backgroundColor: alpha(theme.palette.background.paper, 0.75),
+              boxShadow: '0 20px 60px rgba(0,0,0,0.1)',
+              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+              overflow: 'visible',
+            }}
+          >
+            <CardContent sx={{ p: { xs: 3, md: 6 } }}>
+              {status === 'finished' ? (
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                  <Box sx={{ textAlign: 'center', py: 8 }}>
+                    <Typography variant="h3" gutterBottom sx={{ fontWeight: 800 }}>Interview Complete! 🎉</Typography>
+                    <Typography color="text.secondary" variant="h6" sx={{ mb: 6 }}>
+                      Thank you for your time. Your responses have been submitted for review.
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      onClick={() => navigate('/candidate')}
+                      sx={{ borderRadius: 50, px: 5, py: 1.5, fontWeight: 700 }}
+                    >
+                      Back to Dashboard
+                    </Button>
+                  </Box>
+                </motion.div>
+              ) : renderMainContent()}
+            </CardContent>
+          </Card>
+        </Container>
+      </Box>
     </>
   );
 };

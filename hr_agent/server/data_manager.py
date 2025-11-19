@@ -100,16 +100,21 @@ class DataManager:
     def save_interviews(self, interviews: List[Dict[str, Any]]) -> None:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM interviews")
+        # Use INSERT OR REPLACE to avoid deleting all records and to handle updates gracefully
         for interview in interviews:
             cursor.execute(
-                "INSERT INTO interviews (id, title, description, config, allowed_candidate_ids, active) VALUES (?, ?, ?, ?, ?, ?)",
+                """
+                INSERT OR REPLACE INTO interviews 
+                (id, title, description, config, allowed_candidate_ids, deadline, active) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
                 (
                     interview["id"],
                     interview["title"],
                     interview.get("description"),
                     json.dumps(interview.get("config", {})),
                     json.dumps(interview.get("allowed_candidate_ids", [])),
+                    interview.get("deadline"),
                     interview.get("active", True),
                 ),
             )
@@ -128,6 +133,18 @@ class DataManager:
         interview['config'] = json.loads(interview['config']) if interview['config'] else {}
         interview['allowed_candidate_ids'] = json.loads(interview['allowed_candidate_ids']) if interview['allowed_candidate_ids'] else []
         return interview
+
+    def delete_interview(self, interview_id: str) -> bool:
+        """Delete an interview by ID."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM interviews WHERE id = ?", (interview_id,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        if deleted:
+            print(f"🗑️  Deleted interview {interview_id}")
+        return deleted
 
     # Results ---------------------------------------------------------------
     def load_results(self) -> List[Dict[str, Any]]:
@@ -252,6 +269,20 @@ class DataManager:
         conn.commit()
         conn.close()
         return record
+
+    def delete_result(self, session_id: str) -> bool:
+        """Delete a result by session_id."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM results WHERE session_id = ?", (session_id,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        if deleted:
+            print(f"🗑️  Deleted result for session {session_id}")
+            # Also delete associated session files
+            self.delete_session(session_id)
+        return deleted
     
     # Session Management
     def create_session(self, session_data: Dict[str, Any]) -> str:
@@ -268,6 +299,29 @@ class DataManager:
         print(f"💾 Created session {session_id}")
         return session_id
     
+    def get_users_by_ids(self, user_ids: List[str]) -> List[Dict[str, Any]]:
+        """Get multiple users by their IDs."""
+        if not user_ids:
+            return []
+        
+        placeholders = ",".join(["?"] * len(user_ids))
+        placeholders = ",".join(["?"] * len(user_ids))
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT id, username, role, email FROM users WHERE id IN ({placeholders})", user_ids)
+            users = []
+            for row in cursor.fetchall():
+                users.append({
+                    "id": row[0],
+                    "username": row[1],
+                    "role": row[2],
+                    "email": row[3]
+                })
+            return users
+        finally:
+            conn.close()
+
     def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve session data by ID."""
         session_file = self.sessions_path / f"{session_id}.json"
@@ -395,10 +449,22 @@ class DataManager:
         
         # Check for existing response for this question
         existing_index = None
+        try:
+            question_index = int(question_index)
+        except (ValueError, TypeError):
+            pass # Keep as is if not convertible
+
         for i, resp in enumerate(session['responses']):
-            if resp.get('question_index') == question_index:
-                existing_index = i
-                break
+            resp_idx = resp.get('question_index')
+            # Try to compare as ints if possible
+            try:
+                if int(resp_idx) == int(question_index):
+                    existing_index = i
+                    break
+            except (ValueError, TypeError):
+                if resp_idx == question_index:
+                    existing_index = i
+                    break
         
         response_data = {
             'question_index': question_index,

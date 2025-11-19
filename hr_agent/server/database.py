@@ -35,6 +35,7 @@ def create_tables():
         description TEXT,
         config TEXT,
         allowed_candidate_ids TEXT,
+        deadline TEXT,
         active BOOLEAN NOT NULL
     )
     """)

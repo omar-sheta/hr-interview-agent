@@ -14,6 +14,7 @@ import {
   Backdrop,
   Autocomplete,
   Chip,
+  Paper,
 } from '@mui/material';
 import {
   ArrowUpward,
@@ -31,6 +32,7 @@ const defaultForm = {
   jobDescription: '',
   numQuestions: 5,
   allowedCandidateIds: [],
+  deadline: '',
   active: true,
 };
 
@@ -64,6 +66,7 @@ const AdminInterviewForm = ({ onSave, initialInterview = null, onCancelEdit, isS
         jobDescription: initialInterview.config?.job_description || '',
         numQuestions: initialInterview.config?.num_questions || 5,
         allowedCandidateIds: allowedCandidates,
+        deadline: initialInterview.deadline || '',
         active: initialInterview.active !== undefined ? initialInterview.active : true,
       });
       setQuestions(initialInterview.config?.questions || []);
@@ -160,6 +163,7 @@ const AdminInterviewForm = ({ onSave, initialInterview = null, onCancelEdit, isS
           questions,
         },
         allowed_candidate_ids: form.allowedCandidateIds,
+        deadline: form.deadline || null,
         active: form.active,
       };
       if (initialInterview?.id) payload.id = initialInterview.id;
@@ -199,7 +203,7 @@ const AdminInterviewForm = ({ onSave, initialInterview = null, onCancelEdit, isS
             </Stack>
           </Stack>
           <Typography variant="body2" color="text.secondary">Generate with AI, then reorder or fine-tune.</Typography>
-          
+
           <Stack spacing={2} sx={{ mt: 2 }}>
             {!questions.length && <Typography color="text.secondary">No questions yet.</Typography>}
             {questions.map((question, index) => (
@@ -257,20 +261,49 @@ const AdminInterviewForm = ({ onSave, initialInterview = null, onCancelEdit, isS
           </Typography>
         </Box>
 
+        <TextField
+          name="deadline"
+          label="Deadline"
+          type="datetime-local"
+          value={form.deadline}
+          onChange={handleChange}
+          fullWidth
+          InputLabelProps={{
+            shrink: true,
+          }}
+          helperText="Optional: Set a deadline for this interview."
+        />
+
         <FormControlLabel control={<Checkbox name="active" checked={form.active} onChange={handleChange} />} label="Interview is Active" />
 
         {error && <Alert severity="error">{error}</Alert>}
-        
-        <Stack direction="row" spacing={2} justifyContent="flex-end">
-          {initialInterview && onCancelEdit && (
-            <Button variant="text" onClick={onCancelEdit}>
-              Cancel Edit
+
+        <Paper
+          elevation={3}
+          sx={{
+            position: 'sticky',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            p: 2,
+            mt: 4,
+            backgroundColor: 'background.paper',
+            zIndex: 10,
+            borderTop: 1,
+            borderColor: 'divider',
+          }}
+        >
+          <Stack direction="row" spacing={2} justifyContent="flex-end">
+            {initialInterview && onCancelEdit && (
+              <Button variant="text" onClick={onCancelEdit}>
+                Cancel Edit
+              </Button>
+            )}
+            <Button type="submit" variant="contained" disabled={isSubmitting || busyMessage}>
+              {isSubmitting ? <CircularProgress size={24} /> : (initialInterview ? 'Update Interview' : 'Save Interview')}
             </Button>
-          )}
-          <Button type="submit" variant="contained" disabled={isSubmitting || busyMessage}>
-            {isSubmitting ? <CircularProgress size={24} /> : (initialInterview ? 'Update Interview' : 'Save Interview')}
-          </Button>
-        </Stack>
+          </Stack>
+        </Paper>
       </Stack>
     </Box>
   );

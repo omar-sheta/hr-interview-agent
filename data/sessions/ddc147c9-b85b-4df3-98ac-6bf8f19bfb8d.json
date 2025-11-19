@@ -1,0 +1,31 @@
+{
+  "candidate_name": "bob",
+  "job_role": "Data Scientist",
+  "job_description": "Introductory data scientist role questions",
+  "questions": [
+    "Describe a time you had to explain a complex data analysis to a non-technical audience?",
+    "Walk me through a data science project you led, detailing your approach to problem definition, data collection, and model evaluation?"
+  ],
+  "current_question": 0,
+  "status": "active",
+  "question_source": "client",
+  "used_fallback": false,
+  "responses": [],
+  "session_id": "ddc147c9-b85b-4df3-98ac-6bf8f19bfb8d",
+  "created_at": "2025-11-18T15:26:02.534886",
+  "updated_at": "2025-11-18T15:26:02.536139",
+  "candidate_id": "1d73b6e7-926e-44e2-a175-6ce2486c80b2",
+  "candidate_username": "bob",
+  "interview_id": "int-data-scientist-001",
+  "interview_title": "Data Scientist Interview",
+  "interview_description": "Introductory data scientist role questions",
+  "interview_config": {
+    "job_role": "Data Scientist",
+    "job_description": "",
+    "num_questions": 2,
+    "questions": [
+      "Describe a time you had to explain a complex data analysis to a non-technical audience?",
+      "Walk me through a data science project you led, detailing your approach to problem definition, data collection, and model evaluation?"
+    ]
+  }
+}

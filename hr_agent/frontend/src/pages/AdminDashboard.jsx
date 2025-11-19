@@ -21,7 +21,7 @@ import {
   DialogTitle,
   DialogContent,
 } from '@mui/material';
-import { Visibility, Edit, PlayArrow, Pause, Group, Add } from '@mui/icons-material';
+import { Visibility, Edit, PlayArrow, Pause, Group, Add, Delete } from '@mui/icons-material';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -32,6 +32,8 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [editingInterview, setEditingInterview] = useState(null);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [interviewToDelete, setInterviewToDelete] = useState(null);
 
   const loadInterviews = async () => {
     if (!user) return;
@@ -95,6 +97,31 @@ const AdminDashboard = () => {
     await loadInterviews();
   };
 
+  const handleDeleteClick = (interview) => {
+    setInterviewToDelete(interview);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!interviewToDelete) return;
+    try {
+      await api.delete(`/api/admin/interviews/${interviewToDelete.id}`, {
+        params: { admin_id: user.user_id },
+      });
+      await loadInterviews();
+      setDeleteConfirmOpen(false);
+      setInterviewToDelete(null);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to delete interview');
+      setDeleteConfirmOpen(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmOpen(false);
+    setInterviewToDelete(null);
+  };
+
   return (
     <>
       <Navbar />
@@ -116,10 +143,10 @@ const AdminDashboard = () => {
         <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 2 }}>
           Interviews
         </Typography>
-        
+
         {loading && <CircularProgress />}
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        
+
         {!loading && (
           <Grid container spacing={2}>
             {interviews.map((interview) => (
@@ -158,6 +185,14 @@ const AdminDashboard = () => {
                     >
                       {interview.active ? 'Pause' : 'Activate'}
                     </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      startIcon={<Delete />}
+                      onClick={() => handleDeleteClick(interview)}
+                    >
+                      Delete
+                    </Button>
                   </CardActions>
                 </Card>
               </Grid>
@@ -183,6 +218,21 @@ const AdminDashboard = () => {
                 onCancelEdit={handleCloseDialog}
                 isSubmitting={formSubmitting}
               />
+            </Box>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={deleteConfirmOpen} onClose={handleCancelDelete}>
+          <DialogTitle>Confirm Deletion</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete "{interviewToDelete?.title}"? This action cannot be undone.
+            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
+              <Button onClick={handleCancelDelete}>Cancel</Button>
+              <Button variant="contained" color="error" onClick={handleConfirmDelete}>
+                Delete
+              </Button>
             </Box>
           </DialogContent>
         </Dialog>
