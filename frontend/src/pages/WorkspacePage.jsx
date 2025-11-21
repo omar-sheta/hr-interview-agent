@@ -57,10 +57,14 @@ const WorkspacePage = () => {
     setStatus('processing');
     setTranscription('');
     try {
+      // Use ref to get accurate current index (avoid stale closure)
+      const questionIndex = currentIndexRef.current;
+      console.log(`[RECORDING] Completed for question index: ${questionIndex}`);
+
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
       formData.append('session_id', session.session_id);
-      formData.append('question_index', currentIndex);
+      formData.append('question_index', questionIndex);
 
       const { data } = await api.post('/transcribe', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -69,7 +73,9 @@ const WorkspacePage = () => {
       setTranscription(data.transcript);
       setPendingTranscriptId(data.transcript_id);
       setStatus('transcribed');
+      console.log(`[RECORDING] Transcription saved: ${data.transcript_id}`);
     } catch (err) {
+      console.error('[RECORDING ERROR]', err);
       setError('Failed to transcribe audio. Please try again.');
       setStatus('idle');
     }
@@ -79,6 +85,13 @@ const WorkspacePage = () => {
     onRecordingComplete: handleRecordingComplete,
     onMicIntensityChange: (level) => setMicLevel(level),
   });
+
+  // Use ref to track current index for recording callback
+  const currentIndexRef = useRef(currentIndex);
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
 
   useEffect(() => {
     if (session?.questions?.length > 0) {
