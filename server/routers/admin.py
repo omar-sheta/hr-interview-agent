@@ -9,7 +9,6 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from typing import Optional
-from pathlib import Path
 
 from ..models.schemas import (
     AdminInterviewCreateRequest,
@@ -619,14 +618,8 @@ async def get_admin_analytics(admin_id: str = Query(..., description="Admin user
     total_candidates = len([u for u in users if u.get("role") == "candidate"])
     completed_interviews = len(results)
     
-    # Calculate completion rate (simplified: completed / (invited candidates * active interviews))
-    # This is a rough approximation. A better one would be based on actual invites.
-    # For now, let's use completed / total results (which doesn't make sense)
-    # Let's use: completed sessions / total unique candidates invited to active interviews
-    
-    # Better metric: Pass rate
+    # Calculate pass rate
     passed_count = len([r for r in results if r.get("status") == "accepted"])
-    pass_rate = (passed_count / completed_interviews * 100) if completed_interviews > 0 else 0
     
     # Average Score
     total_score = 0
@@ -919,7 +912,7 @@ async def delete_admin_candidate(
 
 
 @router.post("/api/admin/interviews/{interview_id}/refine-question")
-async def refine_question(interview_id: str, request: RefineQuestionRequest):
+async def refine_interview_question(interview_id: str, request: RefineQuestionRequest):
     """Refine a specific question in an interview using AI."""
     require_admin(request.admin_id)
     
