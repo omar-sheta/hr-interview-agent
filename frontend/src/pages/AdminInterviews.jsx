@@ -28,7 +28,8 @@ const AdminInterviews = () => {
   const [editForm, setEditForm] = useState({
     title: '',
     description: '',
-    allowed_candidate_ids: []
+    allowed_candidate_ids: [],
+    deadline: ''
   });
 
   const loadData = async () => {
@@ -78,7 +79,8 @@ const AdminInterviews = () => {
     setEditForm({
       title: interview.title,
       description: interview.description || '',
-      allowed_candidate_ids: interview.allowed_candidate_ids || []
+      allowed_candidate_ids: interview.allowed_candidate_ids || [],
+      deadline: interview.deadline || ''
     });
     setEditOpen(true);
   };
@@ -238,6 +240,16 @@ const AdminInterviews = () => {
               renderInput={(params) => (
                 <TextField {...params} label="Assigned Candidates" placeholder="Select candidates" />
               )}
+            />
+
+            <TextField
+              label="Deadline"
+              type="datetime-local"
+              fullWidth
+              value={editForm.deadline}
+              onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              helperText="Set a deadline for candidates to complete this interview"
             />
           </Box>
         </DialogContent>
