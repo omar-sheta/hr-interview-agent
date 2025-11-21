@@ -99,6 +99,11 @@ class AdminInterviewCreateRequest(BaseModel):
     allowed_candidate_ids: List[str] = []
     deadline: Optional[str] = None
     active: bool = True
+    # AI generation fields
+    use_ai_generation: bool = False
+    job_role: Optional[str] = None
+    job_description: Optional[str] = None
+    num_questions: int = 5
 
 
 class AdminInterviewUpdateRequest(BaseModel):
@@ -109,3 +114,18 @@ class AdminInterviewUpdateRequest(BaseModel):
     allowed_candidate_ids: Optional[List[str]] = None
     deadline: Optional[str] = None
     active: Optional[bool] = None
+
+
+class RefineQuestionRequest(BaseModel):
+    """Request model for refining a question with AI."""
+    admin_id: str
+    question_index: int
+    refinement_instruction: str
+    model: str = "gemma3:27b"
+    temperature: float = 0.7
+
+
+class ReorderQuestionsRequest(BaseModel):
+    """Request model for reordering interview questions."""
+    admin_id: str
+    new_order: List[int]  # Array of indices in new order

@@ -11,7 +11,10 @@ import {
   Box,
   Alert,
   CircularProgress,
+  useTheme,
+  alpha,
 } from '@mui/material';
+import { motion } from 'framer-motion';
 import hiveLogo from '../assets/hive-logo.png';
 
 const LoginPage = () => {
@@ -19,6 +22,7 @@ const LoginPage = () => {
   const { login, isLoading } = useAuth();
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
+  const theme = useTheme();
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -51,81 +55,148 @@ const LoginPage = () => {
         height: '100vh',
       }}
     >
-      <Card sx={{ boxShadow: 3, borderRadius: 2 }}>
-        <CardContent sx={{ p: 4 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+      >
+        <Card
+          sx={{
+            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+            borderRadius: 4,
+            backdropFilter: 'blur(10px)',
+            backgroundColor: alpha(theme.palette.background.paper, 0.7),
+            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+            overflow: 'visible',
+          }}
+        >
+          <CardContent sx={{ p: 5 }}>
             <Box
-              component="img"
-              src={hiveLogo}
-              alt="Hive Logo"
               sx={{
-                width: 120,
-                height: 'auto',
-                mb: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
               }}
-            />
-            <Typography component="h1" variant="h5">
-              Sign In
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Use your demo admin or candidate account.
-            </Typography>
-            <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 3, width: '100%' }}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="username"
-                label="Username"
-                name="username"
-                autoComplete="username"
-                autoFocus
-                value={form.username}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="password"
-                label="Password"
-                type="password"
-                id="password"
-                autoComplete="current-password"
-                value={form.password}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-              {error && (
-                <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
-                  {error}
-                </Alert>
-              )}
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                sx={{ mt: 3, mb: 2, py: 1.5 }}
-                disabled={isLoading}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
               >
-                {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
-              </Button>
-              <Box sx={{ textAlign: 'center' }}>
-                <Link to="/signup" style={{ textDecoration: 'none' }}>
-                  Don't have an account? Sign Up
-                </Link>
+                <Box
+                  component="img"
+                  src={hiveLogo}
+                  alt="Hive Logo"
+                  sx={{
+                    width: 100,
+                    height: 'auto',
+                    mb: 3,
+                    filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))',
+                  }}
+                />
+              </motion.div>
+
+              <Typography component="h1" variant="h4" fontWeight="700" sx={{ mb: 1, letterSpacing: '-0.5px' }}>
+                Welcome Back
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 4, textAlign: 'center' }}>
+                Sign in to access your dashboard
+              </Typography>
+
+              <Box component="form" onSubmit={handleSubmit} noValidate sx={{ width: '100%' }}>
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="username"
+                  label="Username"
+                  name="username"
+                  autoComplete="username"
+                  autoFocus
+                  value={form.username}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: alpha(theme.palette.background.paper, 0.5),
+                    }
+                  }}
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  name="password"
+                  label="Password"
+                  type="password"
+                  id="password"
+                  autoComplete="current-password"
+                  value={form.password}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: alpha(theme.palette.background.paper, 0.5),
+                    }
+                  }}
+                />
+
+                {error && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                    <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
+                      {error}
+                    </Alert>
+                  </motion.div>
+                )}
+
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  size="large"
+                  sx={{
+                    mt: 4,
+                    mb: 3,
+                    py: 1.5,
+                    borderRadius: 2,
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    boxShadow: '0 4px 14px 0 rgba(0,118,255,0.39)',
+                    transition: 'transform 0.2s',
+                    '&:hover': {
+                      transform: 'scale(1.02)',
+                    }
+                  }}
+                  disabled={isLoading}
+                >
+                  {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+                </Button>
+
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Don't have an account?{' '}
+                    <Link
+                      to="/signup"
+                      style={{
+                        textDecoration: 'none',
+                        color: theme.palette.primary.main,
+                        fontWeight: 600
+                      }}
+                    >
+                      Sign Up
+                    </Link>
+                  </Typography>
+                </Box>
               </Box>
             </Box>
-          </Box>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </motion.div>
     </Container>
   );
 };

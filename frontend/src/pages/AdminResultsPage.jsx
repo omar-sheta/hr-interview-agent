@@ -28,6 +28,7 @@ import {
   DialogTitle,
   DialogContent,
   IconButton,
+  Snackbar,
 } from '@mui/material';
 import {
   ExpandMore,
@@ -49,6 +50,7 @@ const AdminResultsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [resultToDelete, setResultToDelete] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const loadResults = async () => {
     if (!user) return;
@@ -88,18 +90,55 @@ const AdminResultsPage = () => {
 
   const groups = Object.keys(groupedResults).sort().map((title) => ({ title, results: groupedResults[title] }));
 
-  const handleUpdateStatus = async (sessionId, newStatus) => {
+  const handleAccept = async (sessionId) => {
     if (!user) return;
     try {
-      await api.put(`/api/admin/results/${sessionId}`, null, {
-        params: { admin_id: user.user_id, status: newStatus },
+      const { data } = await api.post(`/api/admin/results/${sessionId}/accept`, null, {
+        params: { admin_id: user.user_id },
       });
       setResults((prevResults) =>
-        prevResults.map((r) => (r.session_id === sessionId ? { ...r, status: newStatus } : r))
+        prevResults.map((r) => (r.session_id === sessionId ? { ...r, status: 'accepted' } : r))
       );
+      setSnackbar({
+        open: true,
+        message: data.email_sent
+          ? '✅ Candidate accepted and email sent!'
+          : '✅ Candidate accepted (email not sent)',
+        severity: data.email_sent ? 'success' : 'warning',
+      });
     } catch (err) {
-      console.error('Failed to update status:', err);
-      setError(err.response?.data?.detail || 'Could not update status.');
+      console.error('Failed to accept:', err);
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.detail || 'Failed to accept candidate',
+        severity: 'error',
+      });
+    }
+  };
+
+  const handleReject = async (sessionId) => {
+    if (!user) return;
+    try {
+      const { data } = await api.post(`/api/admin/results/${sessionId}/reject`, null, {
+        params: { admin_id: user.user_id },
+      });
+      setResults((prevResults) =>
+        prevResults.map((r) => (r.session_id === sessionId ? { ...r, status: 'rejected' } : r))
+      );
+      setSnackbar({
+        open: true,
+        message: data.email_sent
+          ? '✅ Candidate rejected and email sent!'
+          : '✅ Candidate rejected (email not sent)',
+        severity: data.email_sent ? 'success' : 'warning',
+      });
+    } catch (err) {
+      console.error('Failed to reject:', err);
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.detail || 'Failed to reject candidate',
+        severity: 'error',
+      });
     }
   };
 
@@ -213,7 +252,7 @@ const AdminResultsPage = () => {
                               variant="outlined"
                               color="success"
                               startIcon={<CheckCircleOutline />}
-                              onClick={(e) => { e.stopPropagation(); handleUpdateStatus(result.session_id, 'accepted'); }}
+                              onClick={(e) => { e.stopPropagation(); handleAccept(result.session_id); }}
                               disabled={result.status === 'accepted'}
                             >
                               Accept
@@ -223,7 +262,7 @@ const AdminResultsPage = () => {
                               variant="outlined"
                               color="error"
                               startIcon={<HighlightOff />}
-                              onClick={(e) => { e.stopPropagation(); handleUpdateStatus(result.session_id, 'rejected'); }}
+                              onClick={(e) => { e.stopPropagation(); handleReject(result.session_id); }}
                               disabled={result.status === 'rejected'}
                             >
                               Reject
@@ -323,6 +362,17 @@ const AdminResultsPage = () => {
           </Box>
         </DialogContent>
       </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 };

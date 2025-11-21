@@ -23,9 +23,17 @@ def create_tables():
         password TEXT NOT NULL,
         email TEXT,
         role TEXT NOT NULL,
+        avatar_url TEXT,
         created_at TEXT NOT NULL
     )
     """)
+
+    # Migration: Add avatar_url if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN avatar_url TEXT")
+    except sqlite3.OperationalError:
+        pass # Column likely already exists
+
 
     # Interviews table
     cursor.execute("""

@@ -370,7 +370,10 @@ main() {
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         local url_to_open="http://127.0.0.1:$CLIENT_HTTP_PORT/"
-        if is_port_in_use "$CLIENT_HTTPS_PORT"; then
+        # Check if cert exists to determine if we should use HTTPS on the standard port
+        if [ -f "$CERT_PATH" ]; then
+            url_to_open="https://127.0.0.1:$CLIENT_HTTP_PORT/"
+        elif is_port_in_use "$CLIENT_HTTPS_PORT"; then
             url_to_open="https://127.0.0.1:$CLIENT_HTTPS_PORT/"
         fi
         open_in_browser "$url_to_open"

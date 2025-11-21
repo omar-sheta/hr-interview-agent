@@ -126,7 +126,7 @@ def generate_questions_locally(
     job_description: Optional[str],
     num_questions: int,
     job_role: Optional[str] = None,
-) -> List[str]:
+) -> List[Dict[str, Any]]:
     """Generate interview questions using template-based approach (fallback)."""
     role_phrase = job_role or "this role"
     keywords = extract_keywords(job_description)
@@ -135,22 +135,41 @@ def generate_questions_locally(
     if not keywords:
         keywords = ["problem solving", "stakeholder communication", "continuous improvement"]
 
-    questions: List[str] = []
-
+    questions: List[Dict[str, Any]] = []
+    
+    # Generate mix of technical and behavioral questions
+    # Technical templates (keyword-based)
     for template in TEMPLATES_KEYWORD:
         if len(questions) >= num_questions:
             break
         keyword = keywords[len(questions) % len(keywords)]
-        questions.append(template.format(role=role_phrase, keyword=keyword))
+        questions.append({
+            "question": template.format(role=role_phrase, keyword=keyword),
+            "index": len(questions),
+            "type": "technical",
+            "scoring_criteria": "Evaluate based on clarity, depth, and relevance"
+        })
 
+    # Behavioral templates (general)
     for template in TEMPLATES_GENERAL:
         if len(questions) >= num_questions:
             break
-        questions.append(template.format(role=role_phrase))
+        questions.append({
+            "question": template.format(role=role_phrase),
+            "index": len(questions),
+            "type": "behavioral",
+            "scoring_criteria": "Evaluate based on clarity, depth, and relevance"
+        })
 
+    # Fill remaining with technical questions
     while len(questions) < num_questions:
         keyword = keywords[len(questions) % len(keywords)]
-        questions.append(f"What best practices have you developed around {keyword}?")
+        questions.append({
+            "question": f"What best practices have you developed around {keyword}?",
+            "index": len(questions),
+            "type": "technical",
+            "scoring_criteria": "Evaluate based on clarity, depth, and relevance"
+        })
 
     return questions[:num_questions]
 
@@ -213,20 +232,27 @@ def build_questions_payload(request: GenerateRequest) -> Dict[str, Any]:
             # If LLM is unavailable, we fall back to local templates by raising
             raise RuntimeError(f"LLM endpoint is not available: {e}")
 
-        # Create a more focused prompt for cleaner question generation
+        # Create a more focused prompt for cleaner question generation with types
         focused_prompt = f"""Generate exactly {num_questions} professional interview questions for this job.
 
 Job Role: {job_role or 'Not specified'}
 Job Description: {job_description or 'General position'}
 
 Requirements:
-- Return ONLY the questions
-- One question per line
-- No numbering, bullets, or explanations
-- Each question must end with a question mark
-- Focus on skills and experience relevant to the role
+- Return a JSON array of question objects
+- Each question must have: "text" (the question), "type" (either "technical" or "behavioral")
+- Mix of technical and behavioral questions (roughly 60% technical, 40% behavioral)
+- Technical questions: assess skills, knowledge, problem-solving related to the job
+- Behavioral questions: assess past experiences, teamwork, communication, leadership
+- Each question must be relevant to the role
 
-Questions:"""
+Return ONLY valid JSON in this exact format:
+[
+  {{"text": "Question text here?", "type": "technical"}},
+  {{"text": "Another question?", "type": "behavioral"}}
+]
+
+JSON:"""
 
         focused_messages = [{"role": "user", "content": focused_prompt}]
         
@@ -253,14 +279,57 @@ Questions:"""
         if ollama_response.status_code == 200:
             result = ollama_response.json()
             content = result.get("message", {}).get("content", "")
-            questions = extract_questions_from_text(content, num_questions)
-            if not questions:
+            
+            # Try to parse as JSON first
+            questions_with_types = []
+            try:
+                import json
+                # Extract JSON from markdown code blocks if present
+                json_content = content
+                if "```json" in content:
+                    json_content = content.split("```json")[1].split("```")[0].strip()
+                elif "```" in content:
+                    json_content = content.split("```")[1].split("```")[0].strip()
+                
+                parsed = json.loads(json_content)
+                if isinstance(parsed, list):
+                    for idx, item in enumerate(parsed[:num_questions]):
+                        if isinstance(item, dict) and "text" in item:
+                            question_type = item.get("type", "technical").lower()
+                            if question_type not in ["technical", "behavioral"]:
+                                question_type = "technical"
+                            questions_with_types.append({
+                                "question": item["text"],
+                                "index": idx,
+                                "type": question_type,
+                                "scoring_criteria": "Evaluate based on clarity, depth, and relevance"
+                            })
+            except (json.JSONDecodeError, KeyError, IndexError) as e:
+                logger.warning(f"Failed to parse JSON response: {e}, falling back to text parsing")
+                # Fall back to text parsing
+                questions = extract_questions_from_text(content, num_questions)
+                # Assign types based on keywords (simple heuristic)
+                for idx, q in enumerate(questions):
+                    q_lower = q.lower()
+                    is_behavioral = any(keyword in q_lower for keyword in [
+                        "tell me about a time", "describe a situation", "give an example",
+                        "how did you handle", "experience with", "worked with a team"
+                    ])
+                    questions_with_types.append({
+                        "question": q,
+                        "index": idx,
+                        "type": "behavioral" if is_behavioral else "technical",
+                        "scoring_criteria": "Evaluate based on clarity, depth, and relevance"
+                    })
+            
+            if not questions_with_types:
                 raise ValueError("LLM returned no parseable questions")
+                
             return {
-                "questions": questions,
+                "questions": questions_with_types,
                 "source": "ollama",
                 "model": request.model,
-                "content": "\n".join(questions),
+                "content": "\n".join([q["question"] for q in questions_with_types]),
                 "raw": content,
                 "timestamp": datetime.now().isoformat(),
                 "used_fallback": False,
@@ -278,7 +347,7 @@ Questions:"""
             "questions": fallback_questions,
             "source": "fallback",
             "model": request.model,
-            "content": "\n".join(fallback_questions),
+            "content": "\n".join([q["question"] for q in fallback_questions]),
             "raw": job_description or job_role or "",
             "timestamp": datetime.now().isoformat(),
             "used_fallback": True,

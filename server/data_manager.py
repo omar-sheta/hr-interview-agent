@@ -83,6 +83,18 @@ class DataManager:
         print(f"➕ Created new user: {username} with role {role}")
         return new_user
 
+    def delete_user(self, user_id: str) -> bool:
+        """Delete a user by ID."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        if deleted:
+            print(f"🗑️  Deleted user {user_id}")
+        return deleted
+
     # Interviews ------------------------------------------------------------
     def load_interviews(self) -> List[Dict[str, Any]]:
         conn = get_db_connection()
