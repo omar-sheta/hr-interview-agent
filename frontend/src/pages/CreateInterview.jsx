@@ -439,7 +439,7 @@ const CreateInterview = () => {
                                             <TextField
                                                 select
                                                 fullWidth
-                                                label="Difficulty Level"
+                                                label="Assessment Level"
                                                 name="difficulty_level"
                                                 value={formData.difficulty_level}
                                                 onChange={handleChange}
