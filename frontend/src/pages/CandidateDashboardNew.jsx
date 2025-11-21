@@ -14,11 +14,13 @@ import {
   Menu,
   MenuItem,
 } from '@mui/material';
-import { Person, Logout } from '@mui/icons-material'; // Added Logout icon
+import { Person, Logout, Brightness4, Brightness7 } from '@mui/icons-material'; // Added Logout icon
 import hiveLogo from '../assets/hive-logo.png';
+import { useTheme } from '../context/ThemeContext.jsx';
 
 const CandidateDashboard = () => {
   const { user, logout } = useAuth(); // Get logout from auth context
+  const { mode, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -139,7 +141,7 @@ const CandidateDashboard = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        bgcolor: '#FAFAFA',
+        bgcolor: 'background.default',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -151,10 +153,10 @@ const CandidateDashboard = () => {
           position: 'sticky',
           top: 0,
           zIndex: 10,
-          bgcolor: 'rgba(255, 255, 255, 0.8)',
+          bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
           backdropFilter: 'blur(10px)',
           borderBottom: '1px solid',
-          borderColor: '#E5E7EB',
+          borderColor: 'divider',
         }}
       >
         <Container maxWidth="lg">
@@ -181,23 +183,26 @@ const CandidateDashboard = () => {
               sx={{
                 display: { xs: 'none', md: 'block' },
                 fontWeight: 500,
-                color: '#374151',
+                color: 'text.secondary',
               }}
             >
               Hive Internship Interview
             </Typography>
 
-            <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <IconButton onClick={toggleTheme} color="inherit">
+                {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+              </IconButton>
               <IconButton
                 onClick={handleMenuOpen}
                 sx={{
                   width: 40,
                   height: 40,
-                  bgcolor: '#F3F4F6',
-                  '&:hover': { bgcolor: '#E5E7EB' },
+                  bgcolor: 'action.hover',
+                  '&:hover': { bgcolor: 'action.selected' },
                 }}
               >
-                <Person sx={{ color: '#6B7280' }} />
+                <Person />
               </IconButton>
               <Menu
                 anchorEl={anchorEl}
@@ -252,13 +257,13 @@ const CandidateDashboard = () => {
               sx={{
                 fontWeight: 900,
                 letterSpacing: '-1px',
-                color: '#111827',
+                color: 'text.primary',
                 mb: 1,
               }}
             >
               Welcome, {user?.username || 'Candidate'}!
             </Typography>
-            <Typography variant="body1" sx={{ fontSize: '1.125rem', color: '#6B7280' }}>
+            <Typography variant="body1" sx={{ fontSize: '1.125rem', color: 'text.secondary' }}>
               Your assigned interviews are listed below. Good luck!
             </Typography>
           </Box>
@@ -299,10 +304,11 @@ const CandidateDashboard = () => {
                         justifyContent: 'space-between',
                         gap: { xs: 3, md: 4 },
                         p: 3,
-                        bgcolor: 'white',
-                        border: '1px solid #E5E7EB',
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
                         borderRadius: 2,
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                        boxShadow: 1,
                         opacity: interview.expired ? 0.6 : 1,
                       }}
                     >
@@ -313,7 +319,7 @@ const CandidateDashboard = () => {
                             sx={{
                               fontWeight: 700,
                               lineHeight: 1.4,
-                              color: '#111827',
+                              color: 'text.primary',
                             }}
                           >
                             {interview.title}
@@ -349,7 +355,7 @@ const CandidateDashboard = () => {
                             flexDirection: { xs: 'column', md: 'row' },
                             gap: { xs: 0.5, md: 2 },
                             fontSize: '0.875rem',
-                            color: '#6B7280',
+                            color: 'text.secondary',
                           }}
                         >
                           <Typography variant="body2" color="inherit">
@@ -392,26 +398,26 @@ const CandidateDashboard = () => {
                           fontWeight: 700,
                           fontSize: '1rem',
                           ...(statusInfo.label === 'Pending' && {
-                            bgcolor: '#007BFF',
-                            boxShadow: '0 10px 15px -3px rgba(0, 123, 255, 0.3)',
+                            bgcolor: 'primary.main',
+                            boxShadow: 3,
                             '&:hover': {
-                              bgcolor: '#0056b3',
+                              bgcolor: 'primary.dark',
                               transform: 'scale(1.02)',
                             },
                             transition: 'all 0.2s',
                           }),
                           ...(statusInfo.label === 'Completed' && {
                             bgcolor: 'transparent',
-                            color: '#374151',
-                            borderColor: '#E5E7EB',
+                            color: 'text.secondary',
+                            borderColor: 'divider',
                             '&:hover': {
-                              bgcolor: '#F3F4F6',
+                              bgcolor: 'action.hover',
                             },
                           }),
                           ...(statusInfo.label === 'Expired' && {
                             bgcolor: 'transparent',
-                            color: '#9CA3AF',
-                            borderColor: '#E5E7EB',
+                            color: 'text.disabled',
+                            borderColor: 'divider',
                             cursor: 'not-allowed',
                           }),
                         }}
@@ -437,7 +443,7 @@ const CandidateDashboard = () => {
                 sx={{
                   fontWeight: 800,
                   letterSpacing: '-0.5px',
-                  color: '#111827',
+                  color: 'text.primary',
                   mb: 4,
                 }}
               >
@@ -465,10 +471,11 @@ const CandidateDashboard = () => {
                         justifyContent: 'space-between',
                         gap: { xs: 3, md: 4 },
                         p: 3,
-                        bgcolor: 'white',
-                        border: '1px solid #E5E7EB',
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
                         borderRadius: 2,
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                        boxShadow: 1,
                       }}
                     >
                       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -478,7 +485,7 @@ const CandidateDashboard = () => {
                             sx={{
                               fontWeight: 700,
                               lineHeight: 1.4,
-                              color: '#111827',
+                              color: 'text.primary',
                             }}
                           >
                             {result.interview_title}
@@ -514,7 +521,7 @@ const CandidateDashboard = () => {
                             flexDirection: { xs: 'column', md: 'row' },
                             gap: { xs: 0.5, md: 2 },
                             fontSize: '0.875rem',
-                            color: '#6B7280',
+                            color: 'text.secondary',
                           }}
                         >
                           <Typography variant="body2" color="inherit">
@@ -563,8 +570,9 @@ const CandidateDashboard = () => {
         sx={{
           mt: 'auto',
           py: 2,
-          borderTop: '1px solid #E5E7EB',
-          bgcolor: 'white',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
         }}
       >
         <Container maxWidth="lg">
@@ -581,9 +589,9 @@ const CandidateDashboard = () => {
               href="#"
               sx={{
                 fontSize: '0.875rem',
-                color: '#6B7280',
+                color: 'text.secondary',
                 textDecoration: 'none',
-                '&:hover': { color: '#007BFF' },
+                '&:hover': { color: 'primary.main' },
               }}
             >
               Help Center
@@ -593,9 +601,9 @@ const CandidateDashboard = () => {
               href="#"
               sx={{
                 fontSize: '0.875rem',
-                color: '#6B7280',
+                color: 'text.secondary',
                 textDecoration: 'none',
-                '&:hover': { color: '#007BFF' },
+                '&:hover': { color: 'primary.main' },
               }}
             >
               Privacy Policy
