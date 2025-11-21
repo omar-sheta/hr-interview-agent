@@ -134,7 +134,7 @@ Questions:"""
         response = requests.post(
             f"{settings.OLLAMA_BASE_URL}/api/chat",
             json={
-                "model": "gemma2:27b",
+                "model": "gemma3:27b",
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
                 "options": {"temperature": 0.7, "num_predict": 500}

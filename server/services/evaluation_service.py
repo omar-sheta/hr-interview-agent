@@ -61,7 +61,7 @@ Areas for improvement: [areas to improve]"""
         ai_response = requests.post(
             f"{settings.OLLAMA_BASE_URL}/api/generate",
             json={
-                "model": "gemma2:27b",
+                "model": "gemma3:27b",
                 "prompt": evaluation_prompt,
                 "stream": False,
                 "options": {
