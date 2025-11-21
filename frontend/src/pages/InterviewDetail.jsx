@@ -153,6 +153,21 @@ const InterviewDetail = () => {
                         </Card>
                     </Grid>
                 </Grid>
+
+                {/* AI Recommendation Button */}
+                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                        variant="contained"
+                        color="secondary"
+                        size="large"
+                        startIcon={<Psychology />}
+                        onClick={handleGetRecommendation}
+                        disabled={loadingRecommendation || stats?.completed === 0}
+                        sx={{ px: 4 }}
+                    >
+                        {loadingRecommendation ? 'Analyzing...' : 'Get AI Recommendations'}
+                    </Button>
+                </Box>
             </Box>
 
             {/* Candidates List */}
@@ -228,19 +243,7 @@ const InterviewDetail = () => {
 
             {/* AI Recommendations Section */}
             <Box sx={{ mt: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6" fontWeight="bold">AI Hiring Recommendations</Typography>
-                    <Button
-                        variant="contained"
-                        color="secondary"
-                        startIcon={<Psychology />}
-                        onClick={handleGetRecommendation}
-                        disabled={loadingRecommendation || stats?.completed === 0}
-                        size="small"
-                    >
-                        {loadingRecommendation ? 'Analyzing...' : 'Get AI Recommendations'}
-                    </Button>
-                </Box>
+                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>AI Hiring Recommendations</Typography>
 
                 {loadingRecommendation && (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>

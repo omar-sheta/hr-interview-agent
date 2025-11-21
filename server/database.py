@@ -57,9 +57,17 @@ def create_tables():
         config TEXT,
         allowed_candidate_ids TEXT,
         deadline TEXT,
-        active BOOLEAN NOT NULL
+        active BOOLEAN NOT NULL,
+        ai_recommendation TEXT
     )
     """)
+
+    # Migration: Add ai_recommendation if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE interviews ADD COLUMN ai_recommendation TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column likely already exists
+
 
     # Results table
     cursor.execute("""

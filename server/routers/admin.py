@@ -587,6 +587,7 @@ async def delete_admin_result(
 async def get_interview_recommendations(
     interview_id: str,
     admin_id: str = Query(..., description="Admin user id"),
+    regenerate: bool = Query(False, description="Force regenerate recommendations"),
 ):
     """Get AI recommendations for all candidates in an interview."""
     require_admin(admin_id)
@@ -597,6 +598,11 @@ async def get_interview_recommendations(
     
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
+    
+    # Check if we have saved recommendations and don't need to regenerate
+    if not regenerate and interview.get("ai_recommendation"):
+        logger.info(f"Returning saved AI recommendations for interview {interview_id}")
+        return interview["ai_recommendation"]
     
     # Get all results for this interview
     results = data_manager.load_results()
@@ -722,7 +728,7 @@ OVERALL INSIGHT:
                 if len(concern_parts) > 1:
                     insight = concern_parts[1].strip()
         
-        return {
+        result = {
             "interview_id": interview_id,
             "interview_title": interview.get("title"),
             "total_candidates": len(candidate_summaries),
@@ -732,12 +738,20 @@ OVERALL INSIGHT:
                 "concerns": concerns,
                 "overall_insight": insight
             },
-            "avg_score": sum(c["score"] for c in candidate_summaries) / len(candidate_summaries) if candidate_summaries else 0
+            "avg_score": sum(c["score"] for c in candidate_summaries) / len(candidate_summaries) if candidate_summaries else 0,
+            "generated_at": datetime.now().isoformat()
         }
+        
+        # Save to database
+        data_manager.update_interview_recommendation(interview_id, result)
+        logger.info(f"Saved AI recommendations for interview {interview_id}")
+        
+        return result
         
     except Exception as e:
         logger.error(f"Failed to get interview recommendations: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate recommendations: {str(e)}")
+
 
 
 

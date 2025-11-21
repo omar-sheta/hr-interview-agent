@@ -107,6 +107,11 @@ class DataManager:
             interview = dict(row)
             interview['config'] = json.loads(interview['config']) if interview['config'] else {}
             interview['allowed_candidate_ids'] = json.loads(interview['allowed_candidate_ids']) if interview['allowed_candidate_ids'] else []
+            # Safely handle ai_recommendation
+            try:
+                interview['ai_recommendation'] = json.loads(interview['ai_recommendation']) if interview.get('ai_recommendation') else None
+            except (json.JSONDecodeError, TypeError):
+                interview['ai_recommendation'] = None
             interviews.append(interview)
         conn.close()
         return interviews
@@ -119,8 +124,8 @@ class DataManager:
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO interviews 
-                (id, title, description, config, allowed_candidate_ids, deadline, active) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (id, title, description, config, allowed_candidate_ids, deadline, active, ai_recommendation) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     interview["id"],
@@ -130,6 +135,7 @@ class DataManager:
                     json.dumps(interview.get("allowed_candidate_ids", [])),
                     interview.get("deadline"),
                     interview.get("active", True),
+                    json.dumps(interview.get("ai_recommendation")) if interview.get("ai_recommendation") else None,
                 ),
             )
         conn.commit()
@@ -146,6 +152,11 @@ class DataManager:
         interview = dict(row)
         interview['config'] = json.loads(interview['config']) if interview['config'] else {}
         interview['allowed_candidate_ids'] = json.loads(interview['allowed_candidate_ids']) if interview['allowed_candidate_ids'] else []
+        # Safely handle ai_recommendation
+        try:
+            interview['ai_recommendation'] = json.loads(interview['ai_recommendation']) if interview.get('ai_recommendation') else None
+        except (json.JSONDecodeError, TypeError):
+            interview['ai_recommendation'] = None
         return interview
 
     def delete_interview(self, interview_id: str) -> bool:
@@ -159,6 +170,19 @@ class DataManager:
         if deleted:
             print(f"🗑️  Deleted interview {interview_id}")
         return deleted
+
+    def update_interview_recommendation(self, interview_id: str, recommendation: Dict[str, Any]) -> bool:
+        """Update AI recommendation for an interview."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE interviews SET ai_recommendation = ? WHERE id = ?",
+            (json.dumps(recommendation), interview_id)
+        )
+        updated = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return updated
 
     # Results ---------------------------------------------------------------
     def load_results(self) -> List[Dict[str, Any]]:
