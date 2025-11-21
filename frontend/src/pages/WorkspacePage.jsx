@@ -183,6 +183,7 @@ const WorkspacePage = () => {
 
   const handleSubmit = async () => {
     setStatus('processing');
+    console.log(`[SUBMIT] Submitting question index: ${currentIndex}, transcript_id: ${pendingTranscriptId}`);
     try {
       const formData = new FormData();
       formData.append('session_id', session.session_id);
@@ -190,19 +191,25 @@ const WorkspacePage = () => {
       if (pendingTranscriptId) {
         formData.append('transcript_id', pendingTranscriptId);
       }
+
+      console.log(`[SUBMIT] FormData - session_id: ${session.session_id}, question_index: ${currentIndex}, transcript_id: ${pendingTranscriptId || 'none'}`);
       await api.post('/interview/submit', formData);
+      console.log(`[SUBMIT] Successfully submitted question ${currentIndex}`);
 
       if (currentIndex < questions.length - 1) {
         const nextIndex = currentIndex + 1;
+        console.log(`[SUBMIT] Moving to next question: ${currentIndex} -> ${nextIndex}`);
         setCurrentIndex(nextIndex);
         setTranscription('');
         setPendingTranscriptId(null);
         setStatus('idle');
         setTimeout(() => handlePlayQuestion(nextIndex), 100);
       } else {
+        console.log(`[SUBMIT] Interview finished after question ${currentIndex}`);
         setStatus('finished');
       }
     } catch (err) {
+      console.error(`[SUBMIT ERROR] Failed to submit question ${currentIndex}:`, err);
       setError('Failed to submit response.');
       setStatus('transcribed');
     }
@@ -210,23 +217,30 @@ const WorkspacePage = () => {
 
   const handleSkip = async () => {
     setStatus('processing');
+    console.log(`[SKIP] Skipping question index: ${currentIndex}`);
     try {
       const formData = new FormData();
       formData.append('session_id', session.session_id);
       formData.append('question_index', currentIndex);
+
+      console.log(`[SKIP] FormData - session_id: ${session.session_id}, question_index: ${currentIndex}`);
       await api.post('/interview/submit', formData);
+      console.log(`[SKIP] Successfully skipped question ${currentIndex}`);
 
       if (currentIndex < questions.length - 1) {
         const nextIndex = currentIndex + 1;
+        console.log(`[SKIP] Moving to next question: ${currentIndex} -> ${nextIndex}`);
         setCurrentIndex(nextIndex);
         setTranscription('');
         setPendingTranscriptId(null);
         setStatus('idle');
         setTimeout(() => handlePlayQuestion(nextIndex), 100);
       } else {
+        console.log(`[SKIP] Interview finished after skipping question ${currentIndex}`);
         setStatus('finished');
       }
     } catch (err) {
+      console.error(`[SKIP ERROR] Failed to skip question ${currentIndex}:`, err);
       setError('Failed to skip question.');
       setStatus('idle');
     }
