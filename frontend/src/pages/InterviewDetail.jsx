@@ -41,6 +41,11 @@ const InterviewDetail = () => {
                 setInterview(data.interview);
                 setStats(data.stats);
                 setCandidates(data.candidates || []);
+
+                // Auto-load saved AI recommendations if they exist
+                if (data.interview?.ai_recommendation) {
+                    setRecommendation(data.interview.ai_recommendation);
+                }
             } catch (err) {
                 setError(err.response?.data?.detail || 'Failed to load interview details');
             } finally {
@@ -65,7 +70,12 @@ const InterviewDetail = () => {
             const { data } = await api.post(
                 `/api/admin/interviews/${id}/recommend`,
                 null,
-                { params: { admin_id: user.user_id } }
+                {
+                    params: {
+                        admin_id: user.user_id,
+                        regenerate: recommendation ? true : false  // Force regenerate if recommendations already exist
+                    }
+                }
             );
             setRecommendation(data);
         } catch (err) {
@@ -165,7 +175,7 @@ const InterviewDetail = () => {
                         disabled={loadingRecommendation || stats?.completed === 0}
                         sx={{ px: 4 }}
                     >
-                        {loadingRecommendation ? 'Analyzing...' : 'Get AI Recommendations'}
+                        {loadingRecommendation ? 'Analyzing...' : recommendation ? 'Reassess Candidates' : 'Get AI Recommendations'}
                     </Button>
                 </Box>
             </Box>
