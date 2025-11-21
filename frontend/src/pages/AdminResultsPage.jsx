@@ -34,6 +34,8 @@ import {
   TableHead,
   TableRow,
   Avatar,
+  DialogActions,
+  DialogContentText,
 } from '@mui/material';
 import {
   ExpandMore,
@@ -411,6 +413,22 @@ const AdminResultsPage = () => {
           </Box>
         </Paper>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onClose={handleCancelDelete}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this result? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDelete}>Cancel</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
