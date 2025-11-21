@@ -179,6 +179,7 @@ async def create_admin_interview(request: AdminInterviewCreateRequest):
         "active": bool(request.active),
         "created_by": request.admin_id,
         "created_at": datetime.now().isoformat(),
+        "deadline": request.deadline,
     }
     interviews.append(new_interview)
     data_manager.save_interviews(interviews)
@@ -262,6 +263,8 @@ async def update_admin_interview(interview_id: str, request: AdminInterviewUpdat
                 updated["allowed_candidate_ids"] = normalize_ids(request.allowed_candidate_ids)
             if request.active is not None:
                 updated["active"] = bool(request.active)
+            if request.deadline is not None:
+                updated["deadline"] = request.deadline
             updated["updated_at"] = datetime.now().isoformat()
             interviews[idx] = updated
             break
