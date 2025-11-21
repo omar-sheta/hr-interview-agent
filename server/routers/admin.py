@@ -1082,7 +1082,7 @@ async def get_interview_stats(
             "email": user.get("email"),
             "avatar_url": user.get("avatar_url"),
             "status": status,
-            "score": score if score > 0 else None,
+            "score": score if score is not None and score > 0 else None,
             "completed_at": completed_at,
             "session_id": session_id
         })
