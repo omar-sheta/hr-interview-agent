@@ -10,8 +10,13 @@ import LogoutPage from './pages/LogoutPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import AdminInterviews from './pages/AdminInterviews.jsx'; // New import
 import CreateInterview from './pages/CreateInterview.jsx'; // New import
+import InterviewDetail from './pages/InterviewDetail.jsx'; // New import
 import AdminCandidates from './pages/AdminCandidates.jsx'; // New import
 import AdminAnalytics from './pages/AdminAnalytics.jsx'; // New import
+import InterviewResultDetail from './pages/InterviewResultDetail.jsx'; // New import
+import CandidateDetail from './pages/CandidateDetail.jsx'; // New import
+import CandidateResultDetail from './pages/CandidateResultDetail.jsx'; // New import
+import InterviewSuccessPage from './pages/InterviewSuccessPage.jsx'; // New import
 import AdminLayout from './layouts/AdminLayout.jsx'; // Corrected import path
 
 function App() {
@@ -31,10 +36,42 @@ function App() {
         }
       />
       <Route
-        path="/interview/:interviewId"
+        path="/candidate-dashboard"
         element={
-          <ProtectedRoute allowedRoles={['candidate']}> {/* Added allowedRoles */}
+          <ProtectedRoute allowedRoles={['candidate']}>
+            <CandidateDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/workspace"
+        element={
+          <ProtectedRoute allowedRoles={['candidate']}>
             <WorkspacePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/candidate"
+        element={
+          <ProtectedRoute allowedRoles={['candidate']}>
+            <CandidateDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/interview/success"
+        element={
+          <ProtectedRoute allowedRoles={['candidate']}>
+            <InterviewSuccessPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/candidate/results/:sessionId"
+        element={
+          <ProtectedRoute allowedRoles={['candidate']}>
+            <CandidateResultDetail />
           </ProtectedRoute>
         }
       />
@@ -51,9 +88,12 @@ function App() {
         <Route index element={<AdminDashboard />} />
         <Route path="interviews" element={<AdminInterviews />} />
         <Route path="interviews/create" element={<CreateInterview />} />
+        <Route path="interviews/:id" element={<InterviewDetail />} />
         <Route path="candidates" element={<AdminCandidates />} />
+        <Route path="candidates/:id" element={<CandidateDetail />} />
         <Route path="analytics" element={<AdminAnalytics />} />
         <Route path="results" element={<AdminResultsPage />} />
+        <Route path="results/:sessionId" element={<InterviewResultDetail />} />
         {/* <Route path="settings" element={<AdminSettings />} /> */}
       </Route>
 

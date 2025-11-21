@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import api from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -8,9 +8,6 @@ import {
   Typography,
   Button,
   Box,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   Chip,
   Grid,
   CircularProgress,
@@ -29,6 +26,13 @@ import {
   DialogContent,
   IconButton,
   Snackbar,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Avatar,
 } from '@mui/material';
 import {
   ExpandMore,
@@ -36,12 +40,13 @@ import {
   HighlightOff,
   StarBorder,
   ThumbUpOutlined,
-  ThumbDownOutlined,
   Search,
   Delete,
+  Visibility,
 } from '@mui/icons-material';
 
 const AdminResultsPage = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -167,213 +172,158 @@ const AdminResultsPage = () => {
     setResultToDelete(null);
   };
 
-  const getStatusChipColor = (status) => {
-    switch (status) {
-      case 'accepted':
-        return 'success';
-      case 'rejected':
-        return 'error';
-      default:
-        return 'warning';
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'accepted': return 'success';
+      case 'rejected': return 'error';
+      case 'pending': return 'warning';
+      default: return 'default';
     }
   };
 
+  const getScoreColor = (score) => {
+    if (!score) return 'text.secondary';
+    if (score >= 8) return 'success.main';
+    if (score >= 5) return 'warning.main';
+    return 'error.main';
+  };
+
   return (
-    <>
-      <Navbar />
-      <Container component="main" maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-          <Typography variant="h4" component="h1">
-            Interview Results
-          </Typography>
-          <FormControl sx={{ minWidth: 180 }} size="small">
-            <InputLabel id="group-by-label">Group By</InputLabel>
-            <Select
-              labelId="group-by-label"
-              value={groupBy}
-              label="Group By"
-              onChange={(e) => setGroupBy(e.target.value)}
-            >
-              <MenuItem value="interview">Interview</MenuItem>
-              <MenuItem value="user">User</MenuItem>
-            </Select>
-          </FormControl>
-          <TextField
-            size="small"
-            placeholder="Search results..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ minWidth: 250 }}
-          />
-          <Button component={Link} to="/admin" variant="outlined">
-            Back to Dashboard
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" fontWeight="800" sx={{ mb: 1 }}>
+          Interview Results
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          View and manage all candidate assessments.
+        </Typography>
+      </Box>
+
+      {/* Search & Filters */}
+      <Box sx={{ mb: 4, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'center' }}>
+        <TextField
+          fullWidth
+          placeholder="Search by candidate name, interview title..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search color="action" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ bgcolor: 'background.paper', borderRadius: 2 }}
+        />
+        <Box sx={{ display: 'flex', gap: 2, minWidth: 'fit-content' }}>
+          <Button variant="outlined" endIcon={<ExpandMore />} sx={{ textTransform: 'none', color: 'text.primary', borderColor: 'divider', bgcolor: 'background.paper' }}>
+            Status: All
+          </Button>
+          <Button variant="outlined" endIcon={<ExpandMore />} sx={{ textTransform: 'none', color: 'text.primary', borderColor: 'divider', bgcolor: 'background.paper' }}>
+            Date Range
+          </Button>
+          <Button variant="outlined" endIcon={<ExpandMore />} sx={{ textTransform: 'none', color: 'text.primary', borderColor: 'divider', bgcolor: 'background.paper' }}>
+            Score Range
           </Button>
         </Box>
+      </Box>
 
-        {loading && <CircularProgress />}
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {loading && <CircularProgress />}
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-        <Stack spacing={2}>
-          {!loading && results.length === 0 && <Alert severity="info">No interview results found.</Alert>}
-          {groups.map((group) => (
-            <Accordion key={group.title} defaultExpanded={false}>
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={12} md={8}>
-                    <Typography sx={{ fontWeight: 'bold' }}>{group.title}</Typography>
-                    <Typography variant="body2" color="text.secondary">{group.results.length} result(s)</Typography>
-                  </Grid>
-                </Grid>
-              </AccordionSummary>
-              <AccordionDetails sx={{ p: 0 }}>
-                <Stack spacing={1} sx={{ p: 2 }}>
-                  {group.results.map((result) => (
-                    <Accordion key={result.session_id} defaultExpanded={false}>
-                      <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Grid container spacing={2} alignItems="center">
-                          <Grid item xs={12} md={4}>
-                            <Typography sx={{ fontWeight: 'bold' }}>{result.candidate_username || result.candidate_id}</Typography>
-                            <Typography variant="body2" color="text.secondary">{result.interview_title}</Typography>
-                          </Grid>
-                          <Grid item xs={4} md={2}>
-                            <Chip label={result.status || 'pending'} color={getStatusChipColor(result.status)} size="small" />
-                          </Grid>
-                          <Grid item xs={8} md={6} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                            <Chip icon={<StarBorder />} label={`Avg. ${result.scores?.average || 'N/A'}`} variant="outlined" />
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              color="success"
-                              startIcon={<CheckCircleOutline />}
-                              onClick={(e) => { e.stopPropagation(); handleAccept(result.session_id); }}
-                              disabled={result.status === 'accepted'}
-                            >
-                              Accept
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              color="error"
-                              startIcon={<HighlightOff />}
-                              onClick={(e) => { e.stopPropagation(); handleReject(result.session_id); }}
-                              disabled={result.status === 'rejected'}
-                            >
-                              Reject
-                            </Button>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={(e) => { e.stopPropagation(); handleDeleteClick(result); }}
-                              title="Delete result"
-                            >
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </Grid>
-                        </Grid>
-                      </AccordionSummary>
-                      <AccordionDetails sx={{ backgroundColor: 'rgba(0, 0, 0, 0.02)', borderTop: '1px solid rgba(0, 0, 0, 0.1)' }}>
-                        <Grid container spacing={3} sx={{ p: 2 }}>
-                          <Grid item xs={12}>
-                            <Typography variant="h6" gutterBottom>Question-by-Question Evaluation</Typography>
-                            <Stack spacing={2}>
-                              {result.answers?.map((answer, index) => {
-                                const feedback = result.feedback?.[index] || {};
-                                return (
-                                  <Paper variant="outlined" key={answer.question_index} sx={{ p: 2 }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', flex: 1 }}>
-                                        Q{answer.question_index + 1}: {answer.question}
-                                      </Typography>
-                                      <Chip
-                                        label={`Score: ${feedback.score || 'N/A'}`}
-                                        size="small"
-                                        color={feedback.score >= 7 ? 'success' : feedback.score >= 5 ? 'warning' : 'error'}
-                                      />
-                                    </Box>
+      {/* Results Table */}
+      {!loading && (
+        <Paper sx={{ width: '100%', overflow: 'hidden', borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
+          <TableContainer>
+            <Table stickyHeader aria-label="sticky table">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.secondary', bgcolor: 'background.default' }}>CANDIDATE NAME</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.secondary', bgcolor: 'background.default' }}>INTERVIEW TITLE</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.secondary', bgcolor: 'background.default' }}>OVERALL SCORE</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.secondary', bgcolor: 'background.default' }}>STATUS</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.secondary', bgcolor: 'background.default' }}>DATE COMPLETED</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.secondary', bgcolor: 'background.default' }} align="right"></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredResults.map((result) => (
+                  <TableRow hover role="checkbox" tabIndex={-1} key={result.session_id} sx={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/results/${result.session_id}`)}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar src={result.candidate_avatar} sx={{ width: 32, height: 32 }}>{result.candidate_username?.[0]}</Avatar>
+                        <Typography fontWeight="500">{result.candidate_username || 'Unknown'}</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>{result.interview_title}</TableCell>
+                    <TableCell>
+                      <Typography fontWeight="600" sx={{ color: getScoreColor(result.overall_score || result.scores?.overall) }}>
+                        {(typeof result.overall_score === 'number' || typeof result.scores?.overall === 'number')
+                          ? `${(result.overall_score ?? result.scores?.overall).toFixed(1)}/10`
+                          : 'N/A'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={result.status || 'Pending'}
+                        color={getStatusColor(result.status)}
+                        size="small"
+                        sx={{ fontWeight: 500, borderRadius: 1 }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>
+                      {result.created_at ? new Date(result.created_at).toLocaleDateString() : 'N/A'}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button
+                        size="small"
+                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/admin/results/${result.session_id}`);
+                        }}
+                      >
+                        View Details
+                      </Button>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(result);
+                        }}
+                        sx={{ ml: 1 }}
+                      >
+                        <Delete />
+                      </IconButton>
 
-                                    <Typography variant="body2" color="text.secondary" sx={{ my: 1.5, fontStyle: 'italic', pl: 2, borderLeft: '3px solid #e0e0e0' }}>
-                                      "{answer.transcript}"
-                                    </Typography>
-
-                                    <Divider sx={{ my: 2 }} />
-
-                                    <Stack spacing={1.5}>
-                                      {feedback.feedback && (
-                                        <Box>
-                                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
-                                            Feedback
-                                          </Typography>
-                                          <Typography variant="body2">{feedback.feedback}</Typography>
-                                        </Box>
-                                      )}
-
-                                      {feedback.strengths && (
-                                        <Box>
-                                          <Typography variant="caption" color="success.main" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
-                                            ✓ Strengths
-                                          </Typography>
-                                          <Typography variant="body2">{feedback.strengths}</Typography>
-                                        </Box>
-                                      )}
-
-                                      {feedback.areas_for_improvement && (
-                                        <Box>
-                                          <Typography variant="caption" color="warning.main" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
-                                            ⚠ Areas for Improvement
-                                          </Typography>
-                                          <Typography variant="body2">{feedback.areas_for_improvement}</Typography>
-                                        </Box>
-                                      )}
-                                    </Stack>
-                                  </Paper>
-                                );
-                              })}
-                            </Stack>
-                          </Grid>
-                        </Grid>
-                      </AccordionDetails>
-                    </Accordion>
-                  ))}
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-          ))}
-        </Stack>
-      </Container>
-
-      <Dialog open={deleteConfirmOpen} onClose={handleCancelDelete}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete the result for {resultToDelete?.candidate_username}? This action cannot be undone.
-          </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
-            <Button onClick={handleCancelDelete}>Cancel</Button>
-            <Button variant="contained" color="error" onClick={handleConfirmDelete}>
-              Delete
-            </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredResults.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                      No results found matching your criteria.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          {/* Pagination Placeholder */}
+          <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="body2" color="text.secondary">
+              Showing <Box component="span" fontWeight="bold">1</Box> to <Box component="span" fontWeight="bold">{filteredResults.length}</Box> of <Box component="span" fontWeight="bold">{filteredResults.length}</Box> results
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button variant="outlined" size="small" disabled>Previous</Button>
+              <Button variant="outlined" size="small" disabled>Next</Button>
+            </Box>
           </Box>
-        </DialogContent>
-      </Dialog>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </>
+        </Paper>
+      )}
+    </Box>
   );
 };
 

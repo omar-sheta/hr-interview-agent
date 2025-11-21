@@ -152,6 +152,21 @@ const WorkspacePage = () => {
     });
   };
 
+  const [recordingTime, setRecordingTime] = useState(0);
+
+  useEffect(() => {
+    let interval;
+    if (isRecording) {
+      setRecordingTime(0);
+      interval = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isRecording]);
+
   useEffect(() => {
     if (isRecording) {
       setStatus('recording');
@@ -159,6 +174,12 @@ const WorkspacePage = () => {
       setStatus('processing');
     }
   }, [isRecording]);
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleSubmit = async () => {
     setStatus('processing');
@@ -377,7 +398,7 @@ const WorkspacePage = () => {
                 </Box>
               </Stack>
               <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block', fontWeight: 600 }}>
-                Listening...
+                Listening... {formatTime(recordingTime)}
               </Typography>
             </Box>
           )}

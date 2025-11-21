@@ -1,365 +1,609 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import Navbar from '../components/Navbar.jsx';
 import api from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { motion } from 'framer-motion';
 import {
-  Container,
-  Grid,
-  Card,
-  CardContent,
-  CardActions,
+  Box,
   Typography,
   Button,
-  Box,
   CircularProgress,
   Alert,
-  List,
-  ListItem,
-  ListItemText,
-  Chip,
-  Divider,
-  useTheme,
-  alpha,
+  IconButton,
+  Avatar,
+  Container,
+  Menu,
+  MenuItem,
 } from '@mui/material';
-import { CheckCircle, Cancel, Schedule } from '@mui/icons-material';
+import { Person, Logout } from '@mui/icons-material'; // Added Logout icon
+import hiveLogo from '../assets/hive-logo.png';
 
 const CandidateDashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth(); // Get logout from auth context
   const navigate = useNavigate();
   const location = useLocation();
-  const theme = useTheme();
 
   const [interviews, setInterviews] = useState([]);
   const [history, setHistory] = useState([]);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [startingInterviewId, setStartingInterviewId] = useState(null);
+
+  // Menu state
+  const [anchorEl, setAnchorEl] = useState(null);
+  const openMenu = Boolean(anchorEl);
+
+  const handleMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    handleMenuClose();
+    await logout();
+  };
 
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
-      setAssignmentsLoading(true);
-      setHistoryLoading(true);
+      setLoading(true);
       setError('');
       try {
-        const assignmentsPromise = api.get('/api/candidate/interviews', { params: { candidate_id: user.user_id } });
-        const historyPromise = api.get('/api/candidate/results', { params: { candidate_id: user.user_id, candidate_username: user.username } });
-        const [assignmentsResponse, historyResponse] = await Promise.all([assignmentsPromise, historyPromise]);
-        setInterviews(assignmentsResponse.data.interviews || []);
-        setHistory(historyResponse.data.results || []);
+        const [interviewsRes, resultsRes] = await Promise.all([
+          api.get('/api/candidate/interviews', { params: { candidate_id: user.user_id } }),
+          api.get('/api/candidate/results', { params: { candidate_id: user.user_id } })
+        ]);
+
+        setInterviews(interviewsRes.data.interviews || []);
+        setHistory(resultsRes.data.results || []);
       } catch (err) {
-        setError(err?.response?.data?.detail || 'Unable to fetch candidate data');
+        setError(err?.response?.data?.detail || 'Unable to fetch interviews');
       } finally {
-        setAssignmentsLoading(false);
-        setHistoryLoading(false);
-        setInitialLoading(false);
+        setLoading(false);
       }
     };
 
     fetchData();
   }, [user]);
 
-  useEffect(() => {
-    if (!location?.state) return;
-    const pending = location.state.pendingResult;
-    if (pending) setHistory((prev) => [pending, ...(prev || [])]);
-  }, [location]);
-
   const handleStart = async (interview) => {
     setStartingInterviewId(interview.id);
     setError('');
     try {
-      const { data } = await api.post(`/api/candidate/interviews/${interview.id}/start`, { candidate_id: user.user_id });
-      navigate('/workspace', { state: { session: data.session, interview: data.interview } });
+      const { data } = await api.post(
+        `/api/candidate/interviews/${interview.id}/start`,
+        { candidate_id: user.user_id }
+      );
+      navigate('/workspace', {
+        state: { session: data.session, interview: data.interview }
+      });
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Could not start the interview session.');
+      setError(err?.response?.data?.detail || 'Could not start interview');
       setStartingInterviewId(null);
     }
   };
 
-  const getStatusChipColor = (status) => {
-    switch (status) {
-      case 'accepted':
-        return 'success';
-      case 'rejected':
-        return 'error';
-      default:
-        return 'warning';
-    }
-  };
-
-  const getDeadlineStatus = (deadline) => {
-    if (!deadline) return null;
-    const now = new Date();
-    const deadlineDate = new Date(deadline);
-    const diff = deadlineDate - now;
-
-    if (diff < 0) {
-      return { expired: true, text: 'Expired', color: 'error' };
+  const getStatusInfo = (interview) => {
+    // Check if interview has been completed
+    if (interview.completed) {
+      return {
+        label: 'Completed',
+        color: '#28A745',
+        bgColor: 'rgba(40, 167, 69, 0.1)',
+        borderColor: 'rgba(40, 167, 69, 0.2)',
+        action: 'View Results',
+        disabled: false,
+      };
     }
 
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
-    if (days > 0) {
-      return { expired: false, text: `Expires in ${days}d ${hours}h`, color: 'info' };
+    // Check deadline
+    if (interview.deadline) {
+      const now = new Date();
+      const deadlineDate = new Date(interview.deadline);
+      if (deadlineDate < now) {
+        return {
+          label: 'Expired',
+          color: '#DC3545',
+          bgColor: 'rgba(220, 53, 69, 0.1)',
+          borderColor: 'rgba(220, 53, 69, 0.2)',
+          action: 'View Details',
+          disabled: true,
+        };
+      }
     }
-    return { expired: false, text: `Expires in ${hours}h`, color: 'warning' };
+
+    return {
+      label: 'Pending',
+      color: '#FFC107',
+      bgColor: 'rgba(255, 193, 7, 0.1)',
+      borderColor: 'rgba(255, 193, 7, 0.2)',
+      action: 'Start Interview',
+      disabled: false,
+    };
   };
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: 'spring',
-        stiffness: 100,
-      },
-    },
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
   };
 
   return (
-    <>
-      <Navbar />
+    <Box
+      sx={{
+        minHeight: '100vh',
+        bgcolor: '#FAFAFA',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* Header */}
       <Box
+        component="header"
         sx={{
-          minHeight: '100vh',
-          background: theme.palette.mode === 'dark'
-            ? 'linear-gradient(135deg, #121212 0%, #1e1e1e 100%)'
-            : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-          pt: 4,
-          pb: 8,
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          bgcolor: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid',
+          borderColor: '#E5E7EB',
         }}
       >
-        <Container component="main" maxWidth="lg">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+        <Container maxWidth="lg">
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              py: 1.5,
+            }}
           >
-            <Box sx={{ mb: 5 }}>
-              <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 800, letterSpacing: '-0.5px' }}>
-                Welcome, {user?.username || 'Candidate'}!
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Here are your assigned and completed interviews.
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <img src={hiveLogo} alt="Hive Logo" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, letterSpacing: '-0.5px' }}
+              >
+                Hive
               </Typography>
             </Box>
-          </motion.div>
 
-          {initialLoading && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', m: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                display: { xs: 'none', md: 'block' },
+                fontWeight: 500,
+                color: '#374151',
+              }}
+            >
+              Hive Internship Interview
+            </Typography>
+
+            <Box>
+              <IconButton
+                onClick={handleMenuOpen}
+                sx={{
+                  width: 40,
+                  height: 40,
+                  bgcolor: '#F3F4F6',
+                  '&:hover': { bgcolor: '#E5E7EB' },
+                }}
+              >
+                <Person sx={{ color: '#6B7280' }} />
+              </IconButton>
+              <Menu
+                anchorEl={anchorEl}
+                open={openMenu}
+                onClose={handleMenuClose}
+                PaperProps={{
+                  elevation: 0,
+                  sx: {
+                    overflow: 'visible',
+                    filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                    mt: 1.5,
+                    '& .MuiAvatar-root': {
+                      width: 32,
+                      height: 32,
+                      ml: -0.5,
+                      mr: 1,
+                    },
+                    '&:before': {
+                      content: '""',
+                      display: 'block',
+                      position: 'absolute',
+                      top: 0,
+                      right: 14,
+                      width: 10,
+                      height: 10,
+                      bgcolor: 'background.paper',
+                      transform: 'translateY(-50%) rotate(45deg)',
+                      zIndex: 0,
+                    },
+                  },
+                }}
+                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+              >
+                <MenuItem onClick={handleLogout}>
+                  <Logout fontSize="small" sx={{ mr: 1.5 }} />
+                  Logout
+                </MenuItem>
+              </Menu>
+            </Box>
+          </Box>
+        </Container>
+      </Box>
+
+      {/* Main Content */}
+      <Box component="main" sx={{ flex: 1, py: { xs: 4, md: 8 } }}>
+        <Container maxWidth="md">
+          {/* Welcome Header */}
+          <Box sx={{ mb: { xs: 4, md: 6 } }}>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 900,
+                letterSpacing: '-1px',
+                color: '#111827',
+                mb: 1,
+              }}
+            >
+              Welcome, {user?.username || 'Candidate'}!
+            </Typography>
+            <Typography variant="body1" sx={{ fontSize: '1.125rem', color: '#6B7280' }}>
+              Your assigned interviews are listed below. Good luck!
+            </Typography>
+          </Box>
+
+          {/* Loading */}
+          {loading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
               <CircularProgress />
             </Box>
           )}
 
+          {/* Error */}
           {error && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>
-            </motion.div>
+            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+              {error}
+            </Alert>
           )}
 
-          {!initialLoading && (
-            <Grid container spacing={4}>
-              <Grid item xs={12} md={7}>
-                <motion.div
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                >
-                  <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-                    Assigned Interviews
-                  </Typography>
-                  {assignmentsLoading && <CircularProgress size={20} sx={{ mb: 2 }} />}
-                  {!interviews.length ? (
-                    <Alert severity="info" sx={{ borderRadius: 2 }}>You have no pending interviews at this time.</Alert>
-                  ) : (
-                    <Grid container spacing={3}>
-                      {interviews.map((interview) => (
-                        <Grid item xs={12} key={interview.id}>
-                          <motion.div variants={itemVariants}>
-                            <Card
+          {/* Interview Cards */}
+          {!loading && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {interviews.length === 0 ? (
+                <Alert severity="info" sx={{ borderRadius: 2 }}>
+                  No interviews assigned at this time.
+                </Alert>
+              ) : (
+                interviews.map((interview) => {
+                  const statusInfo = getStatusInfo(interview);
+                  const isStarting = startingInterviewId === interview.id;
+
+                  return (
+                    <Box
+                      key={interview.id}
+                      sx={{
+                        display: 'flex',
+                        flexDirection: { xs: 'column', md: 'row' },
+                        alignItems: { xs: 'stretch', md: 'center' },
+                        justifyContent: 'space-between',
+                        gap: { xs: 3, md: 4 },
+                        p: 3,
+                        bgcolor: 'white',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: 2,
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                        opacity: interview.expired ? 0.6 : 1,
+                      }}
+                    >
+                      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                          <Typography
+                            variant="h6"
+                            sx={{
+                              fontWeight: 700,
+                              lineHeight: 1.4,
+                              color: '#111827',
+                            }}
+                          >
+                            {interview.title}
+                          </Typography>
+                          <Box
+                            component="span"
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              px: 1.25,
+                              py: 0.5,
+                              borderRadius: '9999px',
+                              bgcolor: statusInfo.bgColor,
+                              border: `1px solid ${statusInfo.borderColor}`,
+                            }}
+                          >
+                            <Typography
+                              variant="caption"
                               sx={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                borderRadius: 4,
-                                backdropFilter: 'blur(10px)',
-                                backgroundColor: alpha(theme.palette.background.paper, 0.6),
-                                boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
-                                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                                transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-                                '&:hover': {
-                                  transform: 'translateY(-4px)',
-                                  boxShadow: '0 12px 40px 0 rgba(31, 38, 135, 0.15)',
-                                },
+                                fontWeight: 500,
+                                color: statusInfo.color,
+                                fontSize: '0.75rem',
                               }}
                             >
-                              <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                                <Typography variant="h6" component="h3" sx={{ fontWeight: 700, mb: 1 }}>
-                                  {interview.title}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                  {interview.description}
-                                </Typography>
-                                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                  <Chip label="AI-Powered" size="small" color="primary" variant="outlined" />
-                                  <Chip label="~15 mins" size="small" variant="outlined" />
-                                  {(() => {
-                                    const status = getDeadlineStatus(interview.deadline);
-                                    if (status) {
-                                      return (
-                                        <Chip
-                                          label={status.text}
-                                          size="small"
-                                          color={status.color}
-                                          variant={status.expired ? 'filled' : 'outlined'}
-                                        />
-                                      );
-                                    }
-                                    return null;
-                                  })()}
-                                </Box>
-                              </CardContent>
-                              <CardActions sx={{ p: 3, pt: 0 }}>
-                                <Button
-                                  size="large"
-                                  variant="contained"
-                                  fullWidth
-                                  onClick={() => handleStart(interview)}
-                                  disabled={startingInterviewId === interview.id || (getDeadlineStatus(interview.deadline)?.expired)}
-                                  sx={{
-                                    borderRadius: 2,
-                                    textTransform: 'none',
-                                    fontWeight: 600,
-                                    boxShadow: '0 4px 14px 0 rgba(0,118,255,0.39)',
-                                  }}
-                                >
-                                  {startingInterviewId === interview.id ? <CircularProgress size={24} color="inherit" /> : 'Start Interview'}
-                                </Button>
-                              </CardActions>
-                            </Card>
-                          </motion.div>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  )}
-                </motion.div>
-              </Grid>
+                              {statusInfo.label}
+                            </Typography>
+                          </Box>
+                        </Box>
 
-              <Grid item xs={12} md={5}>
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3, duration: 0.5 }}
-                >
-                  <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-                    Interview History
-                  </Typography>
-                  <Card
-                    sx={{
-                      borderRadius: 4,
-                      backdropFilter: 'blur(10px)',
-                      backgroundColor: alpha(theme.palette.background.paper, 0.6),
-                      boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
-                      border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                    }}
-                  >
-                    {historyLoading && (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', m: 4 }}>
-                        <CircularProgress size={20} />
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: { xs: 'column', md: 'row' },
+                            gap: { xs: 0.5, md: 2 },
+                            fontSize: '0.875rem',
+                            color: '#6B7280',
+                          }}
+                        >
+                          <Typography variant="body2" color="inherit">
+                            {interview.company || 'Hive Corporation'}
+                          </Typography>
+                          <Box
+                            component="span"
+                            sx={{ display: { xs: 'none', md: 'inline' } }}
+                          >
+                            •
+                          </Box>
+                          <Typography variant="body2" color="inherit">
+                            {interview.deadline
+                              ? `Due: ${formatDate(interview.deadline)}`
+                              : interview.completed
+                                ? `Completed: ${formatDate(interview.completed_at)}`
+                                : 'No deadline'}
+                          </Typography>
+                          <Box
+                            component="span"
+                            sx={{ display: { xs: 'none', md: 'inline' } }}
+                          >
+                            •
+                          </Box>
+                          <Typography variant="body2" color="inherit">
+                            Duration: {interview.duration || '90'} minutes
+                          </Typography>
+                        </Box>
                       </Box>
-                    )}
-                    {!history.length ? (
-                      <CardContent sx={{ p: 4, textAlign: 'center' }}>
-                        <Typography color="text.secondary">No interviews completed yet.</Typography>
-                      </CardContent>
-                    ) : (
-                      <List disablePadding>
-                        {history.map((result, index) => {
-                          const status = result.status || 'pending';
 
-                          // Determine background color and icon based on status
-                          let bgColor, statusIcon;
-                          if (status === 'accepted') {
-                            bgColor = alpha(theme.palette.success.main, 0.08);
-                            statusIcon = <CheckCircle sx={{ fontSize: 20, color: 'success.main' }} />;
-                          } else if (status === 'rejected') {
-                            bgColor = alpha(theme.palette.error.main, 0.08);
-                            statusIcon = <Cancel sx={{ fontSize: 20, color: 'error.main' }} />;
-                          } else {
-                            bgColor = alpha(theme.palette.warning.main, 0.05);
-                            statusIcon = <Schedule sx={{ fontSize: 20, color: 'warning.main' }} />;
-                          }
-
-                          return (
-                            <React.Fragment key={result.session_id || index}>
-                              <ListItem
-                                sx={{
-                                  p: 2.5,
-                                  backgroundColor: bgColor,
-                                  transition: 'all 0.2s ease-in-out',
-                                  '&:hover': {
-                                    backgroundColor: status === 'accepted'
-                                      ? alpha(theme.palette.success.main, 0.12)
-                                      : status === 'rejected'
-                                        ? alpha(theme.palette.error.main, 0.12)
-                                        : alpha(theme.palette.warning.main, 0.08),
-                                  }
-                                }}
-                              >
-                                <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
-                                  {statusIcon}
-                                </Box>
-                                <ListItemText
-                                  primary={
-                                    <Typography variant="subtitle1" fontWeight="700" sx={{ mb: 0.5 }}>
-                                      {result.interview_title || result.interview_id}
-                                    </Typography>
-                                  }
-                                  secondary={
-                                    <Typography variant="caption" color="text.secondary" display="block">
-                                      {result.timestamp ? new Date(result.timestamp).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'Date: N/A'}
-                                    </Typography>
-                                  }
-                                />
-                                <Chip
-                                  label={status}
-                                  color={getStatusChipColor(status)}
-                                  size="small"
-                                  sx={{ fontWeight: 600, borderRadius: 1.5, textTransform: 'capitalize' }}
-                                />
-                              </ListItem>
-                              {index < history.length - 1 && <Divider />}
-                            </React.Fragment>
-                          );
-                        })}
-                      </List>
-                    )}
-                  </Card>
-                </motion.div>
-              </Grid>
-            </Grid>
+                      <Button
+                        variant={statusInfo.label === 'Pending' ? 'contained' : 'outlined'}
+                        disabled={statusInfo.disabled || isStarting}
+                        onClick={() => handleStart(interview)}
+                        sx={{
+                          minWidth: { xs: '100%', md: 150 },
+                          height: 48,
+                          borderRadius: 2,
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          fontSize: '1rem',
+                          ...(statusInfo.label === 'Pending' && {
+                            bgcolor: '#007BFF',
+                            boxShadow: '0 10px 15px -3px rgba(0, 123, 255, 0.3)',
+                            '&:hover': {
+                              bgcolor: '#0056b3',
+                              transform: 'scale(1.02)',
+                            },
+                            transition: 'all 0.2s',
+                          }),
+                          ...(statusInfo.label === 'Completed' && {
+                            bgcolor: 'transparent',
+                            color: '#374151',
+                            borderColor: '#E5E7EB',
+                            '&:hover': {
+                              bgcolor: '#F3F4F6',
+                            },
+                          }),
+                          ...(statusInfo.label === 'Expired' && {
+                            bgcolor: 'transparent',
+                            color: '#9CA3AF',
+                            borderColor: '#E5E7EB',
+                            cursor: 'not-allowed',
+                          }),
+                        }}
+                      >
+                        {isStarting ? (
+                          <CircularProgress size={24} color="inherit" />
+                        ) : (
+                          statusInfo.action
+                        )}
+                      </Button>
+                    </Box>
+                  );
+                })
+              )}
+            </Box>
           )}
+
+          {/* Interview History */}
+          {!loading && history.length > 0 && (
+            <Box sx={{ mt: 8 }}>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 800,
+                  letterSpacing: '-0.5px',
+                  color: '#111827',
+                  mb: 4,
+                }}
+              >
+                Interview History
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {history.map((result) => {
+                  const statusColor =
+                    result.status === 'completed' ? '#28A745' :
+                      result.status === 'rejected' ? '#DC3545' :
+                        '#FFC107'; // pending/review
+
+                  const statusLabel =
+                    result.status === 'completed' ? 'Accepted' : // Just for demo, usually 'Completed'
+                      result.status === 'rejected' ? 'Rejected' :
+                        'In Review';
+
+                  return (
+                    <Box
+                      key={result.id}
+                      sx={{
+                        display: 'flex',
+                        flexDirection: { xs: 'column', md: 'row' },
+                        alignItems: { xs: 'stretch', md: 'center' },
+                        justifyContent: 'space-between',
+                        gap: { xs: 3, md: 4 },
+                        p: 3,
+                        bgcolor: 'white',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: 2,
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                      }}
+                    >
+                      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                          <Typography
+                            variant="h6"
+                            sx={{
+                              fontWeight: 700,
+                              lineHeight: 1.4,
+                              color: '#111827',
+                            }}
+                          >
+                            {result.interview_title}
+                          </Typography>
+                          <Box
+                            component="span"
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              px: 1.25,
+                              py: 0.5,
+                              borderRadius: '9999px',
+                              bgcolor: `${statusColor}1A`, // 10% opacity
+                              border: `1px solid ${statusColor}33`, // 20% opacity
+                            }}
+                          >
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                fontWeight: 500,
+                                color: statusColor,
+                                fontSize: '0.75rem',
+                              }}
+                            >
+                              {statusLabel}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: { xs: 'column', md: 'row' },
+                            gap: { xs: 0.5, md: 2 },
+                            fontSize: '0.875rem',
+                            color: '#6B7280',
+                          }}
+                        >
+                          <Typography variant="body2" color="inherit">
+                            Completed: {formatDate(result.timestamp)}
+                          </Typography>
+                          <Box
+                            component="span"
+                            sx={{ display: { xs: 'none', md: 'inline' } }}
+                          >
+                            •
+                          </Box>
+                          <Typography variant="body2" color="inherit">
+                            Score: {result.scores?.average || 'N/A'}/10
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      <Button
+                        variant="outlined"
+                        onClick={() => navigate(`/candidate/results/${result.session_id}`)}
+                        sx={{
+                          minWidth: { xs: '100%', md: 150 },
+                          height: 48,
+                          borderRadius: 2,
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          fontSize: '1rem',
+                        }}
+                      >
+                        View Details
+                      </Button>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
+
+
         </Container>
-      </Box>
-    </>
+      </Box >
+
+      {/* Footer */}
+      < Box
+        component="footer"
+        sx={{
+          mt: 'auto',
+          py: 2,
+          borderTop: '1px solid #E5E7EB',
+          bgcolor: 'white',
+        }}
+      >
+        <Container maxWidth="lg">
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 3,
+            }}
+          >
+            <Typography
+              component="a"
+              href="#"
+              sx={{
+                fontSize: '0.875rem',
+                color: '#6B7280',
+                textDecoration: 'none',
+                '&:hover': { color: '#007BFF' },
+              }}
+            >
+              Help Center
+            </Typography>
+            <Typography
+              component="a"
+              href="#"
+              sx={{
+                fontSize: '0.875rem',
+                color: '#6B7280',
+                textDecoration: 'none',
+                '&:hover': { color: '#007BFF' },
+              }}
+            >
+              Privacy Policy
+            </Typography>
+          </Box>
+        </Container>
+      </Box >
+    </Box >
   );
 };
 

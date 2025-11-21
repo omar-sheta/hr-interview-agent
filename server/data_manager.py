@@ -57,7 +57,7 @@ class DataManager:
         conn.close()
         return dict(user) if user else None
 
-    def create_user(self, username: str, password: str, role: str = "candidate", email: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def create_user(self, username: str, password: str, role: str = "candidate", email: Optional[str] = None, first_name: Optional[str] = None, last_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Create a new user and save to the database. Returns the new user or None if username exists."""
         if self.get_user_by_username(username):
             return None  # Username already exists
@@ -67,6 +67,8 @@ class DataManager:
             "username": username,
             "password": password,  # Storing as plain text for now, consider hashing in production
             "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
             "role": role,
             "created_at": datetime.now().isoformat(),
         }
@@ -74,8 +76,8 @@ class DataManager:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO users (id, username, password, email, role, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (new_user["id"], new_user["username"], new_user["password"], new_user["email"], new_user["role"], new_user["created_at"]),
+            "INSERT INTO users (id, username, password, email, first_name, last_name, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (new_user["id"], new_user["username"], new_user["password"], new_user["email"], new_user["first_name"], new_user["last_name"], new_user["role"], new_user["created_at"]),
         )
         conn.commit()
         conn.close()
@@ -485,12 +487,17 @@ class DataManager:
         
         if existing_index is not None:
             session['responses'][existing_index] = response_data
-            print(f"🔄 Updated response for question {question_index} in session {session_id}")
+            print(f"🔄 Updated response for question {question_index} in session {session_id}. Total responses: {len(session['responses'])}")
         else:
             session['responses'].append(response_data)
-            print(f"➕ Added response for question {question_index} in session {session_id}")
+            print(f"➕ Added response for question {question_index} in session {session_id}. Total responses: {len(session['responses'])}")
         
-        return self.update_session(session_id, session)
+        success = self.update_session(session_id, session)
+        if success:
+            print(f"✅ Successfully saved session {session_id} with new response")
+        else:
+            print(f"❌ Failed to save session {session_id} after adding response")
+        return success
     
     def get_session_responses_with_transcripts(self, session_id: str) -> List[Dict[str, Any]]:
         """Get all responses for a session with full transcript data."""

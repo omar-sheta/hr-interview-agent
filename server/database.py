@@ -22,6 +22,8 @@ def create_tables():
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         email TEXT,
+        first_name TEXT,
+        last_name TEXT,
         role TEXT NOT NULL,
         avatar_url TEXT,
         created_at TEXT NOT NULL
@@ -33,6 +35,17 @@ def create_tables():
         cursor.execute("ALTER TABLE users ADD COLUMN avatar_url TEXT")
     except sqlite3.OperationalError:
         pass # Column likely already exists
+    
+    # Migration: Add first_name and last_name if they don't exist
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN first_name TEXT")
+    except sqlite3.OperationalError:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN last_name TEXT")
+    except sqlite3.OperationalError:
+        pass
 
 
     # Interviews table

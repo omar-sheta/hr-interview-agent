@@ -4,7 +4,7 @@ Interview router.
 Endpoints for interview session management (start, submit, results).
 """
 
-from fastapi import APIRouter, HTTPException, Form
+from fastapi import APIRouter, HTTPException, Form, BackgroundTasks
 from typing import Optional
 
 from ..models.schemas import InterviewStartRequest
@@ -38,6 +38,7 @@ async def get_interview_session(session_id: str):
 
 @router.post("/interview/submit")
 async def submit_response(
+    background_tasks: BackgroundTasks,
     session_id: str = Form(...),
     question_index: int = Form(...),
     transcript_id: Optional[str] = Form(None)
@@ -47,7 +48,15 @@ async def submit_response(
         import logging
         logger = logging.getLogger("hr_interview_agent.interview")
         logger.info(f"📥 Received submission for session {session_id}, question_index={question_index} (type: {type(question_index)})")
-        return submit_interview_response(session_id, question_index, transcript_id)
+        
+        result = submit_interview_response(session_id, question_index, transcript_id)
+        
+        # If interview is completed, trigger async evaluation
+        if result.get("session_status") == "completed":
+            logger.info(f"🎓 Interview {session_id} completed. Triggering background evaluation.")
+            background_tasks.add_task(evaluate_interview_session, session_id)
+            
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to submit response: {str(e)}")
 
@@ -56,11 +65,24 @@ async def submit_response(
 async def get_interview_results(session_id: str):
     """Get interview results and scoring."""
     try:
+        # Check if results already exist
+        results = data_manager.load_results()
+        existing_result = next((r for r in results if r.get("session_id") == session_id), None)
+        
+        if existing_result:
+            return existing_result
+            
+        # If no results but session is completed, it might be processing
+        session = data_manager.get_session(session_id)
+        if session and session.get("status") == "completed":
+            return {"status": "processing", "message": "Results are being generated"}
+            
+        # If not completed or not found, try to evaluate (fallback)
+        # This is kept for backward compatibility or manual triggers
         results = evaluate_interview_session(session_id)
         
         # Send completion email to admin (creator of the interview)
         # We need to fetch the interview to get the creator's ID, then fetch the creator to get their email
-        session = data_manager.get_session(session_id)
         if session:
             interview = data_manager.get_interview(session["interview_id"])
             if interview and interview.get("created_by"):

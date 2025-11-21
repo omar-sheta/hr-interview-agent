@@ -156,7 +156,7 @@ const AdminDashboard = () => {
                     </Grid>
                 </Grid>
 
-                {/* Right Column: Upcoming Deadlines / Notifications */}
+                {/* Right Column: Pending Reviews */}
                 <Grid item xs={12} lg={4}>
                     <Card
                         sx={{
@@ -170,18 +170,39 @@ const AdminDashboard = () => {
                     >
                         <CardContent sx={{ p: 3 }}>
                             <Typography variant="h6" fontWeight="700" sx={{ mb: 3 }}>
-                                Upcoming Deadlines
+                                Pending Reviews
                             </Typography>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                {interviews.filter(i => i.deadline).slice(0, 3).map((interview, i) => (
-                                    <Box key={i} sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.background.paper, 0.4), border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-                                        <Typography variant="subtitle2" fontWeight="600">{interview.title}</Typography>
-                                        <Typography variant="caption" color="text.secondary">Due: {interview.deadline}</Typography>
+                                {analytics?.pending_reviews?.slice(0, 5).map((review, i) => (
+                                    <Box
+                                        key={i}
+                                        sx={{
+                                            p: 2,
+                                            borderRadius: 2,
+                                            bgcolor: alpha(theme.palette.background.paper, 0.4),
+                                            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                                            cursor: 'pointer',
+                                            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.05) }
+                                        }}
+                                        onClick={() => navigate(`/admin/results/${review.id}`)}
+                                    >
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                                            <Typography variant="subtitle2" fontWeight="600">{review.candidate}</Typography>
+                                            <Typography variant="caption" sx={{ bgcolor: alpha(theme.palette.warning.main, 0.1), color: theme.palette.warning.main, px: 1, py: 0.5, borderRadius: 1, fontWeight: 'bold' }}>
+                                                {review.score}/10
+                                            </Typography>
+                                        </Box>
+                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                            {review.interview}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Submitted: {new Date(review.submitted_at).toLocaleDateString()}
+                                        </Typography>
                                     </Box>
                                 ))}
-                                {interviews.filter(i => i.deadline).length === 0 && (
+                                {(!analytics?.pending_reviews || analytics.pending_reviews.length === 0) && (
                                     <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                                        No upcoming deadlines
+                                        No pending reviews
                                     </Typography>
                                 )}
                             </Box>

@@ -272,7 +272,8 @@ start_servers() {
     echo "Starting HTTP API Server..."
     # Run from project root so package imports and relative imports resolve properly
     cd "$PROJECT_ROOT"
-    uvicorn server.main:app --host "$SERVER_BIND_HOST" --port "$SERVER_PORT" >/tmp/hr_agent_api_http.log 2>&1 &
+    uvicorn_cmd="python3 -m uvicorn"
+    $uvicorn_cmd server.main:app --host "$SERVER_BIND_HOST" --port "$SERVER_PORT" >/tmp/hr_agent_api_http.log 2>&1 &
     PIDS+=($!)
     wait_for_service "http://127.0.0.1:$SERVER_PORT/health" "HTTP API Server" || cleanup_on_exit
 
@@ -288,7 +289,7 @@ start_servers() {
         echo "Starting HTTPS API Server..."
         # Run from project root so package imports and relative imports resolve properly
         cd "$PROJECT_ROOT"
-        uvicorn server.main:app --host "$SERVER_BIND_HOST" --port "$HTTPS_API_PORT" --ssl-keyfile "$KEY_PATH" --ssl-certfile "$CERT_PATH" >/tmp/hr_agent_api_https.log 2>&1 &
+        $uvicorn_cmd server.main:app --host "$SERVER_BIND_HOST" --port "$HTTPS_API_PORT" --ssl-keyfile "$KEY_PATH" --ssl-certfile "$CERT_PATH" >/tmp/hr_agent_api_https.log 2>&1 &
         PIDS+=($!)
         wait_for_service "https://127.0.0.1:$HTTPS_API_PORT/health" "HTTPS API Server" "-k" || cleanup_on_exit
         

@@ -1,13 +1,21 @@
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography, Avatar, useTheme, alpha } from '@mui/material';
-import { Dashboard, VideoCameraFront, Group, BarChart, Settings, AssignmentTurnedIn } from '@mui/icons-material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography, Avatar, useTheme, alpha, IconButton } from '@mui/material';
+import { Dashboard, VideoCameraFront, Group, BarChart, Settings, AssignmentTurnedIn, Brightness4, Brightness7, Logout } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import { useTheme as useAppTheme } from '../context/ThemeContext';
 import { Link, useLocation } from 'react-router-dom';
 import hiveLogo from '../assets/hive-logo.png';
 
 const Sidebar = () => {
     const theme = useTheme();
-    const { user } = useAuth();
+    const { mode, toggleTheme } = useAppTheme();
+    const { user, logout } = useAuth();
     const location = useLocation();
+
+    const handleLogout = async () => {
+        await logout();
+        // Navigation is handled by AuthContext/App routing usually, but we can force it if needed
+        // window.location.href = '/login'; 
+    };
 
     const menuItems = [
         { text: 'Dashboard', icon: <Dashboard />, path: '/admin' },
@@ -23,19 +31,33 @@ const Sidebar = () => {
             sx={{
                 width: 280,
                 height: '100vh',
-                bgcolor: '#1a1f2e', // Dark background from reference
-                color: 'white',
+                bgcolor: 'background.paper',
+                color: 'text.primary',
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'fixed',
                 left: 0,
                 top: 0,
-                borderRight: '1px solid rgba(255,255,255,0.1)',
+                borderRight: 1,
+                borderColor: 'divider',
             }}
         >
             {/* Logo Section */}
             <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-                <img src={hiveLogo} alt="Hive Logo" style={{ width: 32, height: 32 }} />
+                <Box
+                    sx={{
+                        width: 40,
+                        height: 40,
+                        bgcolor: 'primary.main',
+                        borderRadius: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 0 10px rgba(0,0,0,0.1)',
+                    }}
+                >
+                    <img src={hiveLogo} alt="Hive Logo" style={{ width: 24, height: 'auto' }} />
+                </Box>
                 <Typography variant="h6" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>
                     AI-HR Platform
                 </Typography>
@@ -74,7 +96,15 @@ const Sidebar = () => {
             </List>
 
             {/* User Profile Section */}
-            <Box sx={{ mt: 'auto', p: 3, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <Box sx={{ mt: 'auto', p: 3, borderTop: 1, borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <IconButton onClick={toggleTheme} color="inherit">
+                        {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+                    </IconButton>
+                    <IconButton onClick={handleLogout} color="inherit">
+                        <Logout />
+                    </IconButton>
+                </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
                         {user?.username?.[0]?.toUpperCase() || 'A'}
@@ -83,7 +113,7 @@ const Sidebar = () => {
                         <Typography variant="subtitle2" fontWeight="600">
                             {user?.username || 'Admin User'}
                         </Typography>
-                        <Typography variant="caption" color="#94a3b8">
+                        <Typography variant="caption" color="text.secondary">
                             Admin
                         </Typography>
                     </Box>

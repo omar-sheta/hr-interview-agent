@@ -4,7 +4,7 @@ Pydantic models for request/response validation.
 All data models used across the HR Interview Agent API.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel
 
 
@@ -67,7 +67,7 @@ class InterviewStartRequest(BaseModel):
     job_role: Optional[str] = None
     job_description: Optional[str] = None
     num_questions: int = 3
-    questions: Optional[List[str]] = None
+    questions: Optional[List[Union[str, Dict[str, Any]]]] = None
 
 
 class InterviewSubmitRequest(BaseModel):
@@ -82,9 +82,12 @@ class LoginRequest(BaseModel):
 
 
 class SignUpRequest(BaseModel):
+    """Sign up request."""
     username: str
     password: str
-    email: str
+    email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 class CandidateInterviewStartRequest(BaseModel):

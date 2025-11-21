@@ -5,9 +5,12 @@ import { motion } from 'framer-motion';
 import api from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
+import { useNavigate } from 'react-router-dom';
+
 const AdminCandidates = () => {
     const theme = useTheme();
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [candidates, setCandidates] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -152,7 +155,9 @@ const AdminCandidates = () => {
                                     </TableCell>
                                     <TableCell>{candidate.role || 'Candidate'}</TableCell>
                                     <TableCell align="right">
-                                        <IconButton size="small"><Visibility fontSize="small" /></IconButton>
+                                        <IconButton size="small" onClick={() => navigate(`/admin/candidates/${candidate.id}`)}>
+                                            <Visibility fontSize="small" />
+                                        </IconButton>
                                         <IconButton size="small" color="error" onClick={() => handleDelete(candidate.id)}><Delete fontSize="small" /></IconButton>
                                     </TableCell>
                                 </TableRow>

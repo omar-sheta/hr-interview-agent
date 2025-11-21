@@ -69,6 +69,48 @@ def test_analytics():
     print("\n✅ Analytics test completed!")
 
 
+def test_dashboard_stats():
+    """Test dashboard stats endpoint"""
+    print("\n" + "="*60)
+    print("Testing Dashboard Stats Endpoint")
+    print("="*60)
+
+    # Login as admin
+    login_response = requests.post(
+        f"{BASE_URL}/api/login",
+        json={"username": "admin", "password": "admin123"}
+    )
+
+    if login_response.status_code != 200:
+        print(f"❌ Login failed: {login_response.text}")
+        return
+
+    admin_id = login_response.json()["user_id"]
+    print(f"✅ Logged in as admin (ID: {admin_id})")
+
+    # Get dashboard stats
+    stats_response = requests.get(
+        f"{BASE_URL}/api/admin/dashboard-stats",
+        params={"admin_id": admin_id}
+    )
+
+    if stats_response.status_code != 200:
+        print(f"❌ Dashboard stats request failed: {stats_response.text}")
+        return
+
+    stats = stats_response.json()
+    print(f"📊 Stats received: {stats}")
+
+    # Check for expected keys
+    expected_keys = ["total_interviews", "completed_interviews", "total_candidates"]
+    for key in expected_keys:
+        if key not in stats:
+            print(f"❌ Missing key in response: {key}")
+            return
+
+    print("✅ All expected keys found in dashboard stats.")
+    print("\n✅ Dashboard stats test completed!")
+
 def test_accept_reject():
     """Test accept/reject endpoints with email notifications"""
     print("\n" + "="*60)
@@ -182,6 +224,7 @@ def main():
     print("🧪 "*20)
     
     try:
+        test_dashboard_stats()
         test_analytics()
         test_accept_reject()
         
@@ -190,7 +233,7 @@ def main():
         print("="*60)
         
     except Exception as e:
-        print(f"\n❌ Test failed with error: {e}")
+        print(f"❌ Test failed with error: {e}")
         import traceback
         traceback.print_exc()
 

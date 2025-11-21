@@ -7,14 +7,18 @@ Endpoints for admin dashboard (interview management, results).
 import uuid
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
 from typing import Optional
+from pathlib import Path
 
 from ..models.schemas import (
     AdminInterviewCreateRequest,
     AdminInterviewUpdateRequest,
     RefineQuestionRequest,
-    ReorderQuestionsRequest
+    ReorderQuestionsRequest,
+    GenerateRequest
 )
+from ..services.question_service import build_questions_payload
 from ..services.auth_service import require_admin
 from ..data_manager import data_manager
 from ..utils.helpers import normalize_ids, get_local_ip
@@ -27,11 +31,102 @@ logger = logging.getLogger("hr_interview_agent.admin")
 router = APIRouter()
 
 
+@router.get("/api/interviews/{interview_id}/audio/{question_index}")
+async def get_question_audio(interview_id: str, question_index: int):
+    """
+    Serve pre-generated TTS audio for a specific question.
+    Returns 404 if audio file doesn't exist.
+    """
+    try:
+        from ..services.tts_audio_service import get_audio_path
+        audio_path = get_audio_path(interview_id, question_index)
+        
+        if audio_path and audio_path.exists():
+            return FileResponse(
+                audio_path,
+                media_type="audio/wav",
+                headers={
+                    "Cache-Control": "public, max-age=604800",  # Cache for 1 week
+                    "Content-Disposition": f"inline; filename=q{question_index}.wav"
+                }
+            )
+        else:
+            raise HTTPException(status_code=404, detail="Audio file not found")
+    except Exception as e:
+        logger.error(f"❌ Error serving audio: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/api/admin/interviews")
 async def list_admin_interviews(admin_id: str = Query(..., description="Admin user id")):
     """List all interviews for the admin dashboard."""
     require_admin(admin_id)
     return {"interviews": data_manager.load_interviews()}
+
+
+@router.post("/api/admin/generate-questions")
+async def generate_questions(request: GenerateRequest):
+    """Generate interview questions using AI."""
+    try:
+        logger.info(f"🤖 Generating questions for role: {request.job_role}")
+        payload = build_questions_payload(request)
+        return payload
+    except Exception as e:
+        logger.error(f"❌ Generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/admin/refine-question")
+async def refine_question(
+    admin_id: str = Query(..., description="Admin user ID"),
+    question: str = Query(..., description="Question to refine"),
+    job_role: str = Query(None, description="Job role for context"),
+    job_description: str = Query(None, description="Job description for context"),
+    instruction: str = Query(None, description="Custom refinement instruction"),
+):
+    """Refine a single question using AI."""
+    require_admin(admin_id)
+    try:
+        logger.info(f"✨ Refining question: {question[:50]}...")
+        
+        # Build prompt based on user instruction or default
+        base_instruction = instruction or "Refine and improve this interview question to make it more specific, clear, and effective"
+        
+        # Construct a very clear prompt for the AI
+        prompt_context = f"""
+*** TASK: REFINE INTERVIEW QUESTION ***
+ORIGINAL QUESTION: "{question}"
+INSTRUCTION: {base_instruction}
+JOB CONTEXT: {job_description or 'General Role'}
+
+ACTION: Rewrite the original question to follow the instruction. 
+REQUIREMENTS:
+1. The output must be a single, high-quality interview question.
+2. Do not include explanations, prefixes, or suffixes.
+3. Do not output multiple options, just the best one.
+"""
+
+        # Build a request to generate one improved question
+        refine_request = GenerateRequest(
+            job_role=job_role or "Refinement Task",
+            job_description=prompt_context,
+            num_questions=1,
+            use_ai_generation=True
+        )
+        
+        payload = build_questions_payload(refine_request)
+        questions = payload.get("questions", [])
+        
+        if questions and len(questions) > 0:
+            refined = questions[0]
+            logger.info(f"✅ Question refined successfully")
+            return {"refined_question": refined}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to generate refined question")
+            
+    except Exception as e:
+        logger.error(f"❌ Refinement failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/api/admin/interviews")
@@ -87,6 +182,22 @@ async def create_admin_interview(request: AdminInterviewCreateRequest):
     }
     interviews.append(new_interview)
     data_manager.save_interviews(interviews)
+    
+    # Generate TTS audio for all questions
+    try:
+        questions = config.get("questions", [])
+        if questions:
+            from ..services.tts_audio_service import generate_interview_audio
+            logger.info(f"🎤 Generating TTS audio for {len(questions)} questions")
+            audio_files = generate_interview_audio(new_interview["id"], questions)
+            
+            # Update interview config with audio files
+            new_interview["config"]["audio_files"] = audio_files
+            data_manager.save_interviews(interviews)
+            logger.info(f"✅ Generated {len([f for f in audio_files if f])} audio files")
+    except Exception as e:
+        logger.error(f"❌ Failed to generate TTS audio: {e}")
+        # Continue without audio files
     
     # Send invite emails to newly assigned candidates
     try:
@@ -159,38 +270,48 @@ async def update_admin_interview(interview_id: str, request: AdminInterviewUpdat
         raise HTTPException(status_code=404, detail="Interview not found")
     data_manager.save_interviews(interviews)
     
+
     # Calculate newly added candidates
     new_candidate_ids = set(updated.get("allowed_candidate_ids", []))
     added_candidate_ids = list(new_candidate_ids - old_candidate_ids)
     
-    logger.info(f"DEBUG: Old IDs: {old_candidate_ids}")
-    logger.info(f"DEBUG: New IDs: {new_candidate_ids}")
-    logger.info(f"DEBUG: Added IDs: {added_candidate_ids}")
+    logger.info(f"🔍 Old IDs: {old_candidate_ids}")
+    logger.info(f"🔍 New IDs: {new_candidate_ids}")
+    logger.info(f"🔍 Added IDs: {added_candidate_ids}")
 
-    if added_candidate_ids:
-        logger.info(f"📨 Sending emails to {len(added_candidate_ids)} newly added candidates")
-        candidates = data_manager.get_users_by_ids(added_candidate_ids)
-        
-        # Determine base URL
-        local_ip = get_local_ip()
-        base_url = f"https://{local_ip}:5173"
-        
-        for candidate in candidates:
-            if candidate.get("email"):
-                logger.info(f"📨 Sending invite to {candidate.get('email')}")
-                email_content = get_invite_email(
-                    candidate_name=candidate.get("username"), 
-                    interview_title=updated["title"], 
-                    interview_link=f"{base_url}/login",
-                    deadline=updated.get("deadline")
-                )
-                email_service.send_email(
-                    to_email=candidate["email"], 
-                    subject=f"Interview Invitation: {updated['title']}", 
-                    html_content=email_content
-                )
-            else:
-                logger.info(f"DEBUG: Candidate {candidate.get('username')} has no email")
+    # Send emails to newly added candidates
+    try:
+        if added_candidate_ids:
+            logger.info(f"📨 Sending emails to {len(added_candidate_ids)} newly added candidates")
+            candidates = data_manager.get_users_by_ids(added_candidate_ids)
+            
+            # Determine base URL
+            local_ip = get_local_ip()
+            base_url = f"https://{local_ip}:5173"
+            
+            for candidate in candidates:
+                if candidate.get("email"):
+                    logger.info(f"📨 Sending invite to {candidate.get('email')}")
+                    email_content = get_invite_email(
+                        candidate_name=candidate.get("username"), 
+                        interview_title=updated["title"], 
+                        interview_link=f"{base_url}/login",
+                        deadline=updated.get("deadline")
+                    )
+                    result = email_service.send_email(
+                        to_email=candidate["email"], 
+                        subject=f"Interview Invitation: {updated['title']}", 
+                        html_content=email_content
+                    )
+                    logger.info(f"📨 Email send result: {result}")
+                else:
+                    logger.info(f"⚠️  Candidate {candidate.get('username')} has no email")
+        else:
+            logger.info("ℹ️  No new candidates added - no emails to send")
+    except Exception as e:
+        logger.error(f"❌ Failed to send invite emails to new candidates: {e}")
+        import traceback
+        traceback.print_exc()
 
     return {"interview": updated}
 
@@ -218,6 +339,44 @@ async def list_admin_results(
     """Return all completed interview results with optional filtering."""
     require_admin(admin_id)
     results = data_manager.load_results()
+    
+    # Helper to calculate score from feedback
+    def calculate_score(result):
+        if result.get("overall_score") and result.get("overall_score") > 0:
+            return result.get("overall_score")
+        if result.get("score") and result.get("score") > 0:
+            return result.get("score")
+            
+        feedback = result.get("feedback", [])
+        # Handle string feedback (if JSON wasn't parsed)
+        if isinstance(feedback, str):
+            try:
+                import json
+                feedback = json.loads(feedback)
+            except:
+                feedback = []
+
+        if feedback and isinstance(feedback, list) and len(feedback) > 0:
+            total = 0
+            count = 0
+            for item in feedback:
+                if isinstance(item, dict):
+                    val = item.get("score") or item.get("overall")
+                    if val is not None:
+                        total += float(val)
+                        count += 1
+            if count > 0:
+                return round(total / count, 1)
+        return 0
+
+    # Update results with calculated score if missing
+    for r in results:
+        if not r.get("overall_score") or r.get("overall_score") == 0:
+            r["overall_score"] = calculate_score(r)
+            if r.get("candidate_username") == "youssef":
+                print(f"DEBUG: Calculated score for youssef: {r['overall_score']}")
+                print(f"DEBUG: Feedback length: {len(r.get('feedback', []))}")
+
     if candidate_id:
         results = [r for r in results if str(r.get("candidate_id")) == str(candidate_id)]
     if interview_id:
@@ -424,6 +583,27 @@ async def delete_admin_result(
     raise HTTPException(status_code=404, detail="Result not found")
 
 
+
+@router.get("/api/admin/dashboard-stats")
+async def get_admin_dashboard_stats(admin_id: str = Query(..., description="Admin user id")):
+    """Return key stats for the admin dashboard."""
+    require_admin(admin_id)
+    
+    interviews = data_manager.load_interviews()
+    results = data_manager.load_results()
+    users = data_manager.load_users()
+    
+    total_interviews = len(interviews)
+    total_candidates = len([u for u in users if u.get("role") == "candidate"])
+    completed_interviews = len(results)
+    
+    return {
+        "total_interviews": total_interviews,
+        "completed_interviews": completed_interviews,
+        "total_candidates": total_candidates,
+    }
+
+
 @router.get("/api/admin/analytics")
 async def get_admin_analytics(admin_id: str = Query(..., description="Admin user id")):
     """Return analytics data for the dashboard."""
@@ -452,13 +632,30 @@ async def get_admin_analytics(admin_id: str = Query(..., description="Admin user
     total_score = 0
     score_count = 0
     for r in results:
-        scores = r.get("scores", {})
-        if isinstance(scores, dict):
-            # Assuming scores are 0-10 or similar. Let's just average the values found.
-            vals = [v for v in scores.values() if isinstance(v, (int, float))]
-            if vals:
-                total_score += sum(vals) / len(vals)
-                score_count += 1
+        # Try to get score from overall_score, score, or feedback
+        score = 0
+        if r.get("overall_score") and r.get("overall_score") > 0:
+            score = r.get("overall_score")
+        elif r.get("score") and r.get("score") > 0:
+            score = r.get("score")
+        elif r.get("feedback"):
+            feedback = r.get("feedback")
+            if isinstance(feedback, list) and len(feedback) > 0:
+                f_total = 0
+                f_count = 0
+                for item in feedback:
+                    if isinstance(item, dict):
+                        val = item.get("score") or item.get("overall")
+                        if val is not None:
+                            f_total += float(val)
+                            f_count += 1
+                if f_count > 0:
+                    score = f_total / f_count
+        
+        if score > 0:
+            total_score += score
+            score_count += 1
+            
     avg_score = (total_score / score_count) if score_count > 0 else 0
     
     # Calculate completion_over_time for last 7 days
@@ -473,7 +670,7 @@ async def get_admin_analytics(admin_id: str = Query(..., description="Admin user
         # Count results completed on this day
         count = 0
         for r in results:
-            completed_at = r.get("completed_at")
+            completed_at = r.get("completed_at") or r.get("timestamp")
             if completed_at:
                 try:
                     # Parse the timestamp
@@ -490,6 +687,27 @@ async def get_admin_analytics(admin_id: str = Query(..., description="Admin user
         
         last_7_days.append({"name": day_name, "value": count})
     
+    # Get pending reviews (status is 'completed' or 'pending')
+    pending_reviews = []
+    for r in results:
+        if r.get("status") in ["completed", "pending"]:
+            # Find candidate name if not in result
+            candidate_name = r.get("candidate_username")
+            if not candidate_name:
+                candidate = next((u for u in users if str(u.get("id")) == str(r.get("candidate_id"))), None)
+                candidate_name = candidate.get("username") if candidate else "Unknown"
+                
+            pending_reviews.append({
+                "id": r.get("session_id"),
+                "candidate": candidate_name,
+                "interview": r.get("interview_title"),
+                "submitted_at": r.get("timestamp") or r.get("completed_at"),
+                "score": r.get("scores", {}).get("average") or r.get("overall_score") or 0
+            })
+    
+    # Sort by date desc
+    pending_reviews.sort(key=lambda x: x.get("submitted_at") or "", reverse=True)
+
     return {
         "metrics": [
             {"label": "Total Interviews", "value": str(total_interviews), "trend": "+0", "trendUp": True},
@@ -501,9 +719,9 @@ async def get_admin_analytics(admin_id: str = Query(..., description="Admin user
             {"name": "Total Candidates", "value": total_candidates, "color": "#2196F3"},
             {"name": "Completed", "value": completed_interviews, "color": "#4CAF50"},
             {"name": "Passed", "value": passed_count, "color": "#FFC107"},
-            {"name": "Hired", "value": passed_count, "color": "#FF9800"}, # Assuming Passed = Hired for now
         ],
-        "completion_over_time": last_7_days
+        "completion_over_time": last_7_days,
+        "pending_reviews": pending_reviews
     }
 
 
@@ -533,6 +751,7 @@ async def list_admin_candidates(admin_id: str = Query(..., description="Admin us
         candidates.append({
             "id": user.get("id"),
             "name": user.get("username"),
+            "username": user.get("username"),
             "email": user.get("email") or "No email",
             "role": "Candidate", # Placeholder role
             "status": status,
@@ -540,6 +759,151 @@ async def list_admin_candidates(admin_id: str = Query(..., description="Admin us
         })
         
     return {"candidates": candidates}
+
+
+@router.get("/api/admin/candidates/{user_id}")
+async def get_candidate_details(
+    user_id: str,
+    admin_id: str = Query(..., description="Admin user id")
+):
+    """Get detailed information about a candidate including history."""
+    require_admin(admin_id)
+    
+    users = data_manager.load_users()
+    user = next((u for u in users if str(u.get("id")) == str(user_id)), None)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    # Get all interviews
+    all_interviews = data_manager.load_interviews()
+    
+    # Get all results for this user
+    all_results = data_manager.load_results()
+    user_results = [r for r in all_results if str(r.get("candidate_id")) == str(user_id)]
+    
+    # Sort results by date desc
+    user_results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    # Find assigned interviews (active/pending)
+    assigned_interviews = []
+    for interview in all_interviews:
+        if user_id in interview.get("allowed_candidate_ids", []):
+            # Check if already completed
+            is_completed = any(str(r.get("interview_id")) == str(interview.get("id")) for r in user_results)
+            
+            assigned_interviews.append({
+                "id": interview.get("id"),
+                "title": interview.get("title"),
+                "status": "Completed" if is_completed else "Pending",
+                "deadline": interview.get("deadline"),
+            })
+            
+    return {
+        "candidate": {
+            "id": user.get("id"),
+            "username": user.get("username"),
+            "email": user.get("email"),
+            "avatar_url": user.get("avatar_url"),
+            "role": user.get("role")
+        },
+        "assigned_interviews": assigned_interviews,
+        "history": user_results
+    }
+
+
+@router.get("/api/admin/interviews/{interview_id}/stats")
+async def get_interview_stats(
+    interview_id: str,
+    admin_id: str = Query(..., description="Admin user id")
+):
+    """Get statistics and candidate details for a specific interview."""
+    require_admin(admin_id)
+    
+    interview = data_manager.get_interview(interview_id)
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+        
+    results = data_manager.load_results()
+    interview_results = [r for r in results if str(r.get("interview_id")) == str(interview_id)]
+    
+    # Helper to calculate score from feedback
+    def calculate_score(result):
+        if result.get("overall_score") and result.get("overall_score") > 0:
+            return result.get("overall_score")
+        if result.get("score") and result.get("score") > 0:
+            return result.get("score")
+            
+        feedback = result.get("feedback", [])
+        if feedback and isinstance(feedback, list) and len(feedback) > 0:
+            total = 0
+            count = 0
+            for item in feedback:
+                if isinstance(item, dict):
+                    val = item.get("score") or item.get("overall")
+                    if val is not None:
+                        total += float(val)
+                        count += 1
+            if count > 0:
+                return round(total / count, 1)
+        return 0
+
+    # Calculate stats
+    total_assigned = len(interview.get("allowed_candidate_ids", []))
+    completed_count = len(interview_results)
+    
+    scores = []
+    for r in interview_results:
+        score = calculate_score(r)
+        if score > 0:
+            scores.append(score)
+            
+    avg_score = sum(scores) / len(scores) if scores else 0
+    
+    # Build candidate list with status
+    candidates_data = []
+    users = data_manager.load_users()
+    
+    for user_id in interview.get("allowed_candidate_ids", []):
+        user = next((u for u in users if str(u.get("id")) == str(user_id)), None)
+        if not user:
+            continue
+            
+        # Check if they have a result
+        user_result = next((r for r in interview_results if str(r.get("candidate_id")) == str(user_id)), None)
+        
+        status = "Pending"
+        score = None
+        completed_at = None
+        session_id = None
+        
+        if user_result:
+            status = user_result.get("status", "Completed")
+            score = calculate_score(user_result)
+            completed_at = user_result.get("completed_at")
+            session_id = user_result.get("session_id")
+            
+        candidates_data.append({
+            "id": user.get("id"),
+            "username": user.get("username"),
+            "email": user.get("email"),
+            "avatar_url": user.get("avatar_url"),
+            "status": status,
+            "score": score if score > 0 else None,
+            "completed_at": completed_at,
+            "session_id": session_id
+        })
+        
+    return {
+        "interview": interview,
+        "stats": {
+            "total_assigned": total_assigned,
+            "completed": completed_count,
+            "pending": total_assigned - completed_count,
+            "avg_score": round(avg_score, 1)
+        },
+        "candidates": candidates_data
+    }
 
 
 @router.delete("/api/admin/candidates/{user_id}")

@@ -258,6 +258,6 @@ def persist_completed_session(
             ],
         },
         "summary": f"Interview completed with average score of {average_score:.1f}/10",
-        "status": "pending",
+        "status": "completed",
     }
     data_manager.upsert_result(session_id, record)

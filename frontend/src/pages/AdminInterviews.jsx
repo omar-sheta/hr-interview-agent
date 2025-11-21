@@ -1,36 +1,55 @@
 import { useEffect, useState } from 'react';
-import { Box, Grid, Typography, Card, CardContent, CardActions, Button, Chip, CircularProgress, Alert, Divider, alpha, useTheme } from '@mui/material';
-import { Edit, PlayArrow, Pause, Group, Delete, Add } from '@mui/icons-material';
+import {
+  Box, Grid, Typography, Card, CardContent, CardActions, Button, Chip,
+  CircularProgress, Alert, Divider, alpha, useTheme, Dialog, DialogTitle,
+  DialogContent, DialogActions, TextField, Autocomplete, Checkbox
+} from '@mui/material';
+import { Edit, PlayArrow, Pause, Group, Delete, Add, CheckBoxOutlineBlank, CheckBox, Visibility } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { motion } from 'framer-motion';
 
+const icon = <CheckBoxOutlineBlank fontSize="small" />;
+const checkedIcon = <CheckBox fontSize="small" />;
+
 const AdminInterviews = () => {
   const { user } = useAuth();
   const [interviews, setInterviews] = useState([]);
+  const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const theme = useTheme();
 
-  const loadInterviews = async () => {
+  // Edit Dialog State
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingInterview, setEditingInterview] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    allowed_candidate_ids: []
+  });
+
+  const loadData = async () => {
     if (!user) return;
     try {
       setLoading(true);
-      const { data } = await api.get('/api/admin/interviews', {
-        params: { admin_id: user.user_id },
-      });
-      setInterviews(data.interviews || []);
+      const [interviewsRes, candidatesRes] = await Promise.all([
+        api.get('/api/admin/interviews', { params: { admin_id: user.user_id } }),
+        api.get('/api/admin/candidates', { params: { admin_id: user.user_id } })
+      ]);
+      setInterviews(interviewsRes.data.interviews || []);
+      setCandidates(candidatesRes.data.candidates || []);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Unable to load interviews');
+      setError(err.response?.data?.detail || 'Unable to load data');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadInterviews();
+    loadData();
   }, [user]);
 
   const handleToggleActive = async (interview) => {
@@ -38,7 +57,7 @@ const AdminInterviews = () => {
       admin_id: user.user_id,
       active: !interview.active,
     });
-    await loadInterviews();
+    await loadData();
   };
 
   const handleDelete = async (id) => {
@@ -47,10 +66,35 @@ const AdminInterviews = () => {
         await api.delete(`/api/admin/interviews/${id}`, {
           params: { admin_id: user.user_id },
         });
-        await loadInterviews();
+        await loadData();
       } catch (err) {
         console.error(err);
       }
+    }
+  };
+
+  const handleEditClick = (interview) => {
+    setEditingInterview(interview);
+    setEditForm({
+      title: interview.title,
+      description: interview.description || '',
+      allowed_candidate_ids: interview.allowed_candidate_ids || []
+    });
+    setEditOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    try {
+      await api.put(`/api/admin/interviews/${editingInterview.id}`, {
+        admin_id: user.user_id,
+        ...editForm
+      });
+      setEditOpen(false);
+      setEditingInterview(null);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to update interview:', err);
+      alert('Failed to update interview');
     }
   };
 
@@ -116,7 +160,22 @@ const AdminInterviews = () => {
               </CardContent>
               <Divider sx={{ opacity: 0.5 }} />
               <CardActions sx={{ justifyContent: 'space-between', px: 3, py: 2 }}>
-                <Button size="small" startIcon={<Edit />} sx={{ fontWeight: 600 }}>Edit</Button>
+                <Button
+                  size="small"
+                  startIcon={<Edit />}
+                  sx={{ fontWeight: 600 }}
+                  onClick={() => handleEditClick(interview)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="small"
+                  startIcon={<Visibility />}
+                  sx={{ fontWeight: 600 }}
+                  onClick={() => navigate(`/admin/interviews/${interview.id}`)}
+                >
+                  View
+                </Button>
                 <Button
                   size="small"
                   startIcon={interview.active ? <Pause /> : <PlayArrow />}
@@ -132,6 +191,61 @@ const AdminInterviews = () => {
           </Grid>
         ))}
       </Grid>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Interview</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="Title"
+              fullWidth
+              value={editForm.title}
+              onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+            />
+            <TextField
+              label="Description"
+              fullWidth
+              multiline
+              rows={3}
+              value={editForm.description}
+              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+            />
+
+            <Autocomplete
+              multiple
+              options={candidates}
+              disableCloseOnSelect
+              getOptionLabel={(option) => option.username || option.email}
+              value={candidates.filter(c => editForm.allowed_candidate_ids.includes(c.id))}
+              onChange={(event, newValue) => {
+                setEditForm({
+                  ...editForm,
+                  allowed_candidate_ids: newValue.map(c => c.id)
+                });
+              }}
+              renderOption={(props, option, { selected }) => (
+                <li {...props}>
+                  <Checkbox
+                    icon={icon}
+                    checkedIcon={checkedIcon}
+                    style={{ marginRight: 8 }}
+                    checked={selected}
+                  />
+                  {option.username} ({option.email})
+                </li>
+              )}
+              renderInput={(params) => (
+                <TextField {...params} label="Assigned Candidates" placeholder="Select candidates" />
+              )}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditOpen(false)}>Cancel</Button>
+          <Button onClick={handleEditSave} variant="contained">Save Changes</Button>
+        </DialogActions>
+      </Dialog>
     </motion.div>
   );
 };

@@ -40,7 +40,14 @@ async def signup(request: SignUpRequest):
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Username already registered")
     
-    new_user = data_manager.create_user(request.username, request.password, role="candidate", email=request.email)
+    new_user = data_manager.create_user(
+        request.username, 
+        request.password, 
+        role="candidate", 
+        email=request.email,
+        first_name=request.first_name,
+        last_name=request.last_name
+    )
     if not new_user:
         from fastapi import HTTPException
         raise HTTPException(status_code=500, detail="Failed to create user")
