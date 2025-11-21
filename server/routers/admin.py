@@ -664,7 +664,7 @@ OVERALL INSIGHT:
         response = requests.post(
             f"{settings.OLLAMA_BASE_URL}/api/generate",
             json={
-                "model": "gemma2:2b",
+                "model": "gemma3:27b",
                 "prompt": prompt,
                 "stream": False,
                 "options": {"temperature": 0.4}
