@@ -583,6 +583,106 @@ async def delete_admin_result(
     raise HTTPException(status_code=404, detail="Result not found")
 
 
+@router.post("/api/admin/results/{session_id}/recommend")
+async def get_ai_recommendation(
+    session_id: str,
+    admin_id: str = Query(..., description="Admin user id"),
+):
+    """Get AI recommendation for accepting or rejecting a candidate based on their interview performance."""
+    require_admin(admin_id)
+    
+    # Get the result
+    results = data_manager.load_results()
+    result = next((r for r in results if r.get("session_id") == session_id), None)
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="Result not found")
+    
+    # Get interview details
+    interviews = data_manager.load_interviews()
+    interview = next((i for i in interviews if str(i.get("id")) == str(result.get("interview_id"))), None)
+    
+    # Prepare data for AI
+    score = result.get("overall_score") or result.get("score") or 0
+    feedback = result.get("feedback", [])
+    interview_title = result.get("interview_title") or (interview.get("title") if interview else "Unknown Interview")
+    
+    # Build summary from feedback
+    feedback_summary = ""
+    if isinstance(feedback, list) and len(feedback) > 0:
+        feedback_items = []
+        for idx, item in enumerate(feedback[:3]):  # Limit to first 3 for brevity
+            if isinstance(item, dict):
+                q_score = item.get("score", 0)
+                feedback_items.append(f"Question {idx+1}: Score {q_score}/10")
+        if feedback_items:
+            feedback_summary = ", ".join(feedback_items)
+    
+    # Construct prompt for Ollama
+    prompt = f"""You are an HR recruitment assistant. Based on the following interview performance data, provide a hiring recommendation.
+
+Interview Position: {interview_title}
+Overall Score: {score}/10
+Performance Details: {feedback_summary if feedback_summary else "No detailed feedback available"}
+
+Analyze this performance and provide:
+1. DECISION: Should this candidate be ACCEPTED or REJECTED?
+2. REASONING: Provide 2-3 sentences explaining your recommendation.
+
+Format your response EXACTLY as follows:
+DECISION: [ACCEPT or REJECT]
+REASONING: [Your explanation here]
+
+Be decisive and practical. A score above 7 typically indicates strong performance."""
+
+    try:
+        import requests
+        from ..config import settings
+        
+        # Call Ollama
+        response = requests.post(
+            f"{settings.OLLAMA_BASE_URL}/api/generate",
+            json={
+                "model": "gemma2:2b",
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.3}
+            },
+            timeout=30
+        )
+        
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail="AI service unavailable")
+        
+        ai_response = response.json().get("response", "")
+        
+        # Parse response
+        decision = "PENDING"
+        reasoning = "Unable to generate recommendation"
+        
+        if "DECISION:" in ai_response and "REASONING:" in ai_response:
+            parts = ai_response.split("REASONING:")
+            decision_part = parts[0].replace("DECISION:", "").strip().upper()
+            reasoning = parts[1].strip() if len(parts) > 1 else reasoning
+            
+            if "ACCEPT" in decision_part:
+                decision = "ACCEPT"
+            elif "REJECT" in decision_part:
+                decision = "REJECT"
+        
+        return {
+            "session_id": session_id,
+            "decision": decision,
+            "reasoning": reasoning,
+            "score": score,
+            "confidence": "high" if score >= 8 or score < 4 else "medium"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get AI recommendation: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate recommendation: {str(e)}")
+
+
 
 @router.get("/api/admin/dashboard-stats")
 async def get_admin_dashboard_stats(admin_id: str = Query(..., description="Admin user id")):

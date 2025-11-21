@@ -4,11 +4,12 @@ import {
     Box, Typography, Paper, Grid, Chip, Button,
     CircularProgress, Alert, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Avatar, IconButton,
-    Card, CardContent, useTheme, alpha
+    Card, CardContent, useTheme, alpha, Dialog, DialogTitle,
+    DialogContent, DialogActions
 } from '@mui/material';
 import {
     ArrowBack, Visibility, CheckCircle, Pending,
-    Group, AssignmentTurnedIn, Star
+    Group, AssignmentTurnedIn, Star, Psychology
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import api from '../api/client';
@@ -25,6 +26,11 @@ const InterviewDetail = () => {
     const [candidates, setCandidates] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+
+    // AI Recommendation Dialog State
+    const [recommendDialog, setRecommendDialog] = useState(false);
+    const [recommendation, setRecommendation] = useState(null);
+    const [loadingRecommendation, setLoadingRecommendation] = useState(false);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -52,6 +58,25 @@ const InterviewDetail = () => {
         if (score >= 8) return 'success.main';
         if (score >= 5) return 'warning.main';
         return 'error.main';
+    };
+
+    const handleGetRecommendation = async (sessionId) => {
+        if (!user || !sessionId) return;
+        try {
+            setLoadingRecommendation(true);
+            const { data } = await api.post(
+                `/api/admin/results/${sessionId}/recommend`,
+                null,
+                { params: { admin_id: user.user_id } }
+            );
+            setRecommendation(data);
+            setRecommendDialog(true);
+        } catch (err) {
+            console.error('Failed to get recommendation:', err);
+            alert(err.response?.data?.detail || 'Failed to get AI recommendation');
+        } finally {
+            setLoadingRecommendation(false);
+        }
     };
 
     if (loading) {
@@ -180,13 +205,27 @@ const InterviewDetail = () => {
                                     </TableCell>
                                     <TableCell align="right">
                                         {candidate.session_id && (
-                                            <Button
-                                                size="small"
-                                                endIcon={<Visibility />}
-                                                onClick={() => navigate(`/admin/results/${candidate.session_id}`)}
-                                            >
-                                                View Report
-                                            </Button>
+                                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color="secondary"
+                                                    startIcon={<Psychology />}
+                                                    onClick={() => handleGetRecommendation(candidate.session_id)}
+                                                    disabled={loadingRecommendation}
+                                                    sx={{ textTransform: 'none' }}
+                                                >
+                                                    AI Recommend
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    endIcon={<Visibility />}
+                                                    onClick={() => navigate(`/admin/results/${candidate.session_id}`)}
+                                                    sx={{ textTransform: 'none' }}
+                                                >
+                                                    View Report
+                                                </Button>
+                                            </Box>
                                         )}
                                     </TableCell>
                                 </TableRow>
@@ -202,6 +241,58 @@ const InterviewDetail = () => {
                     </Table>
                 </TableContainer>
             </Paper>
+
+            {/* AI Recommendation Dialog */}
+            <Dialog
+                open={recommendDialog}
+                onClose={() => setRecommendDialog(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Psychology color="secondary" />
+                        <Typography variant="h6" fontWeight="bold">AI Hiring Recommendation</Typography>
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    {recommendation && (
+                        <Box sx={{ mt: 2 }}>
+                            <Box sx={{ mb: 3, p: 2, borderRadius: 2, bgcolor: recommendation.decision === 'ACCEPT' ? alpha(theme.palette.success.main, 0.1) : alpha(theme.palette.error.main, 0.1), border: 1, borderColor: recommendation.decision === 'ACCEPT' ? 'success.main' : 'error.main' }}>
+                                <Typography variant="overline" color="text.secondary">Decision</Typography>
+                                <Typography variant="h5" fontWeight="bold" color={recommendation.decision === 'ACCEPT' ? 'success.main' : 'error.main'}>
+                                    {recommendation.decision}
+                                </Typography>
+                            </Box>
+
+                            <Box sx={{ mb: 2 }}>
+                                <Typography variant="overline" color="text.secondary">AI Reasoning</Typography>
+                                <Typography variant="body1" sx={{ mt: 1 }}>
+                                    {recommendation.reasoning}
+                                </Typography>
+                            </Box>
+
+                            <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+                                <Box sx={{ flex: 1, p: 2, borderRadius: 2, bgcolor: 'background.default' }}>
+                                    <Typography variant="caption" color="text.secondary">Candidate Score</Typography>
+                                    <Typography variant="h6" fontWeight="bold" color={getScoreColor(recommendation.score)}>
+                                        {recommendation.score.toFixed(1)}/10
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ flex: 1, p: 2, borderRadius: 2, bgcolor: 'background.default' }}>
+                                    <Typography variant="caption" color="text.secondary">AI Confidence</Typography>
+                                    <Typography variant="h6" fontWeight="bold">
+                                        {recommendation.confidence.charAt(0).toUpperCase() + recommendation.confidence.slice(1)}
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setRecommendDialog(false)}>Close</Button>
+                </DialogActions>
+            </Dialog>
         </motion.div>
     );
 };
