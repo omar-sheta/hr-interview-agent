@@ -33,6 +33,7 @@ import {
     DialogContent,
     DialogActions,
     DialogContentText,
+    MenuItem,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -77,7 +78,8 @@ const CreateInterview = () => {
         use_ai_generation: true,
         num_questions: 5,
         questions: [],
-        deadline: '',  // Add deadline
+        deadline: '',
+        difficulty_level: 'moderate',  // Add difficulty level
     });
 
     // Fetch candidates when component mounts
@@ -237,6 +239,7 @@ const CreateInterview = () => {
                 job_role: formData.job_role,
                 job_description: formData.job_description,
                 num_questions: formData.num_questions,
+                difficulty_level: formData.difficulty_level,
                 model: "gemma3:27b"
             });
 
@@ -299,11 +302,12 @@ const CreateInterview = () => {
                 num_questions: formData.questions.length,
                 use_ai_generation: false, // We already generated them
                 active: true,
-                allowed_candidate_ids: selectedCandidates, // Include selected candidates
-                deadline: formData.deadline || null,  // Add deadline
+                allowed_candidate_ids: selectedCandidates,
+                deadline: formData.deadline || null,
                 config: {
                     questions: formData.questions,
                     ai_generated: formData.use_ai_generation,
+                    difficulty_level: formData.difficulty_level,
                     source: 'web-ui'
                 }
             };
@@ -430,6 +434,21 @@ const CreateInterview = () => {
                                                 marks
                                                 valueLabelDisplay="auto"
                                             />
+                                        </Grid>
+                                        <Grid item xs={12} md={6}>
+                                            <TextField
+                                                select
+                                                fullWidth
+                                                label="Difficulty Level"
+                                                name="difficulty_level"
+                                                value={formData.difficulty_level}
+                                                onChange={handleChange}
+                                                helperText="Adjust scoring strictness and question complexity"
+                                            >
+                                                <MenuItem value="easy">Easy - Entry Level</MenuItem>
+                                                <MenuItem value="moderate">Moderate - Standard Assessment</MenuItem>
+                                                <MenuItem value="highly_competitive">Highly Competitive - Expert Level</MenuItem>
+                                            </TextField>
                                         </Grid>
                                         <Grid item xs={12}>
                                             <TextField

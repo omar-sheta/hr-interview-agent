@@ -29,6 +29,7 @@ class GenerateRequest(BaseModel):
     job_role: Optional[str] = None
     job_description: Optional[str] = None
     num_questions: Optional[int] = None
+    difficulty_level: Optional[str] = "moderate"  # easy, moderate, highly_competitive
 
     def formatted_messages(self) -> List[Dict[str, str]]:
         """Return chat-formatted messages derived from prompt/messages."""

@@ -232,11 +232,21 @@ def build_questions_payload(request: GenerateRequest) -> Dict[str, Any]:
             # If LLM is unavailable, we fall back to local templates by raising
             raise RuntimeError(f"LLM endpoint is not available: {e}")
 
+        # Map difficulty level to scoring guidelines
+        difficulty_instructions = {
+            "easy": "Entry-level questions suitable for junior candidates. Focus on foundational knowledge and basic concepts.",
+            "moderate": "Standard professional-level questions suitable for mid-level candidates. Balance between theory and practical application.",
+            "highly_competitive": "Expert-level questions for senior/lead positions. Focus on advanced concepts, architecture, and complex problem-solving."
+        }
+        
+        difficulty_guide = difficulty_instructions.get(request.difficulty_level or "moderate", difficulty_instructions["moderate"])
+        
         # Create a more focused prompt for cleaner question generation with types
         focused_prompt = f"""Generate exactly {num_questions} professional interview questions for this job.
 
 Job Role: {job_role or 'Not specified'}
 Job Description: {job_description or 'General position'}
+Difficulty Level: {request.difficulty_level or 'moderate'} - {difficulty_guide}
 
 Requirements:
 - Return a JSON array of question objects
@@ -244,7 +254,7 @@ Requirements:
 - Mix of technical and behavioral questions (roughly 60% technical, 40% behavioral)
 - Technical questions: assess skills, knowledge, problem-solving related to the job
 - Behavioral questions: assess past experiences, teamwork, communication, leadership
-- Each question must be relevant to the role
+- Each question must be relevant to the role and match the specified difficulty level
 
 Return ONLY valid JSON in this exact format:
 [
@@ -253,6 +263,7 @@ Return ONLY valid JSON in this exact format:
 ]
 
 JSON:"""
+
 
         focused_messages = [{"role": "user", "content": focused_prompt}]
         
