@@ -548,7 +548,18 @@ class DataManager:
         
         # Sort by question_index
         responses_with_transcripts.sort(key=lambda x: x.get('question_index', 0))
-        return responses_with_transcripts
+        
+        # Defensive deduplication: keep only the latest response for each question_index
+        unique_responses = {}
+        for response in responses_with_transcripts:
+            q_idx = response.get('question_index')
+            # Keep the last occurrence (most recent)
+            unique_responses[q_idx] = response
+        
+        # Convert back to list, sorted by question_index
+        deduplicated = [unique_responses[idx] for idx in sorted(unique_responses.keys())]
+        
+        return deduplicated
     
     # Cleanup
     def _cleanup_session_files(self, session_id: str):
