@@ -99,14 +99,16 @@ const AdminResultsPage = () => {
 
     // Date Filter
     let matchesDate = true;
-    if (dateRange !== 'all') {
+    if (dateRange !== 'all' && r.created_at) {
       const date = new Date(r.created_at);
-      const now = new Date();
-      const diffTime = Math.abs(now - date);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (dateRange === 'today') matchesDate = diffDays <= 1;
-      if (dateRange === '7days') matchesDate = diffDays <= 7;
-      if (dateRange === '30days') matchesDate = diffDays <= 30;
+      if (!isNaN(date.getTime())) {
+        const now = new Date();
+        const diffTime = Math.abs(now - date);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (dateRange === 'today') matchesDate = diffDays <= 1;
+        if (dateRange === '7days') matchesDate = diffDays <= 7;
+        if (dateRange === '30days') matchesDate = diffDays <= 30;
+      }
     }
 
     // Score Filter
