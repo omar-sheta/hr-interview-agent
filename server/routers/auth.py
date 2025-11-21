@@ -27,6 +27,7 @@ async def login(request: LoginRequest):
         "user_id": user.get("id"),
         "role": user.get("role"),
         "username": user.get("username"),
+        "email": user.get("email"),
         "avatar_url": user.get("avatar_url"),
         "message": "Login successful"
     }

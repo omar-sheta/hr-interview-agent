@@ -23,6 +23,8 @@ export const AuthProvider = ({ children }) => {
         user_id: data.user_id,
         username: data.username,
         role: data.role,
+        email: data.email,
+        avatar_url: data.avatar_url,
       };
       setUser(payload);
       localStorage.setItem('hr_user', JSON.stringify(payload));
