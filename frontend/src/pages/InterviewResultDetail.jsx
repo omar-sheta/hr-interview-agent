@@ -103,12 +103,16 @@ const InterviewResultDetail = () => {
                 params: { admin_id: user.user_id },
             });
 
+
+            console.log('Target Result candidate_id:', targetResult.candidate_id, typeof targetResult.candidate_id);
+            console.log('All candidates:', candidatesRes.data.candidates);
+
             const candidateData = candidatesRes.data.candidates.find(
-                (c) => c.id === targetResult.candidate_id
+                (c) => String(c.id) === String(targetResult.candidate_id)
             );
 
+            console.log('Matched Candidate Data:', candidateData);
             setCandidate(candidateData);
-            console.log('Candidate Data:', candidateData);
         } catch (error) {
             console.error('Error fetching result details:', error);
             setSnackbar({

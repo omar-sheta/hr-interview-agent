@@ -446,12 +446,12 @@ const CandidateDashboard = () => {
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {history.map((result) => {
                   const statusColor =
-                    result.status === 'completed' ? '#28A745' :
+                    result.status === 'accepted' ? '#28A745' :
                       result.status === 'rejected' ? '#DC3545' :
                         '#FFC107'; // pending/review
 
                   const statusLabel =
-                    result.status === 'completed' ? 'Accepted' : // Just for demo, usually 'Completed'
+                    result.status === 'accepted' ? 'Accepted' :
                       result.status === 'rejected' ? 'Rejected' :
                         'In Review';
 
