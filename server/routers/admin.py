@@ -149,7 +149,7 @@ async def create_admin_interview(request: AdminInterviewCreateRequest):
                 job_role=request.job_role,
                 job_description=request.job_description or request.description,
                 num_questions=request.num_questions,
-                model="gemma3:27b",
+                model="gemma2:27b",
                 temperature=0.7
             )
             
@@ -702,7 +702,7 @@ OVERALL INSIGHT:
         response = requests.post(
             f"{settings.OLLAMA_BASE_URL}/api/generate",
             json={
-                "model": "gemma3:27b",
+                "model": "gemma2:27b",
                 "prompt": prompt,
                 "stream": False,
                 "options": {"temperature": 0.4}

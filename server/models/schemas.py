@@ -23,7 +23,7 @@ class GenerateRequest(BaseModel):
     """Request model for text generation."""
     messages: Optional[List[Dict[str, str]]] = None
     prompt: Optional[str] = None
-    model: str = "gemma3:27b"
+    model: str = "gemma2:27b"
     temperature: float = 0.7
     max_tokens: int = 1000
     job_role: Optional[str] = None
@@ -58,7 +58,7 @@ class EditQuestionRequest(BaseModel):
     edit_instruction: str
     job_description: Optional[str] = None
     job_role: Optional[str] = None
-    model: str = "gemma3:27b"
+    model: str = "gemma2:27b"
     temperature: float = 0.7
 
 
@@ -125,7 +125,7 @@ class RefineQuestionRequest(BaseModel):
     admin_id: str
     question_index: int
     refinement_instruction: str
-    model: str = "gemma3:27b"
+    model: str = "gemma2:27b"
     temperature: float = 0.7
 
 
