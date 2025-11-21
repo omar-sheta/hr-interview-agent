@@ -57,6 +57,16 @@ const AdminResultsPage = () => {
   const [resultToDelete, setResultToDelete] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+  // Filter States
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateRange, setDateRange] = useState('all');
+  const [scoreRange, setScoreRange] = useState('all');
+
+  // Menu Anchors
+  const [anchorElStatus, setAnchorElStatus] = useState(null);
+  const [anchorElDate, setAnchorElDate] = useState(null);
+  const [anchorElScore, setAnchorElScore] = useState(null);
+
   const loadResults = async () => {
     if (!user) return;
     try {
@@ -77,13 +87,38 @@ const AdminResultsPage = () => {
   }, [user]);
 
   const filteredResults = results.filter((r) => {
-    if (!searchQuery) return true;
+    // Text Search
     const query = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = !searchQuery ||
       (r.interview_title || '').toLowerCase().includes(query) ||
       (r.candidate_username || '').toLowerCase().includes(query) ||
-      (r.candidate_id || '').toLowerCase().includes(query)
-    );
+      (r.candidate_id || '').toLowerCase().includes(query);
+
+    // Status Filter
+    const matchesStatus = statusFilter === 'all' || (r.status || 'pending').toLowerCase() === statusFilter;
+
+    // Date Filter
+    let matchesDate = true;
+    if (dateRange !== 'all') {
+      const date = new Date(r.created_at);
+      const now = new Date();
+      const diffTime = Math.abs(now - date);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (dateRange === 'today') matchesDate = diffDays <= 1;
+      if (dateRange === '7days') matchesDate = diffDays <= 7;
+      if (dateRange === '30days') matchesDate = diffDays <= 30;
+    }
+
+    // Score Filter
+    let matchesScore = true;
+    if (scoreRange !== 'all') {
+      const score = r.overall_score ?? r.scores?.overall ?? 0;
+      if (scoreRange === 'high') matchesScore = score >= 8; // 8-10 (Green)
+      if (scoreRange === 'medium') matchesScore = score >= 5 && score < 8; // 5-7.9 (Yellow)
+      if (scoreRange === 'low') matchesScore = score < 5; // 0-4.9 (Red)
+    }
+
+    return matchesSearch && matchesStatus && matchesDate && matchesScore;
   });
 
   const groupedResults = (filteredResults || []).reduce((acc, r) => {
@@ -217,15 +252,65 @@ const AdminResultsPage = () => {
           sx={{ bgcolor: 'background.paper', borderRadius: 2 }}
         />
         <Box sx={{ display: 'flex', gap: 2, minWidth: 'fit-content' }}>
-          <Button variant="outlined" endIcon={<ExpandMore />} sx={{ textTransform: 'none', color: 'text.primary', borderColor: 'divider', bgcolor: 'background.paper' }}>
-            Status: All
+          {/* Status Filter */}
+          <Button
+            variant="outlined"
+            endIcon={<ExpandMore />}
+            onClick={(e) => setAnchorElStatus(e.currentTarget)}
+            sx={{ textTransform: 'none', color: 'text.primary', borderColor: 'divider', bgcolor: statusFilter !== 'all' ? 'action.selected' : 'background.paper' }}
+          >
+            Status: {statusFilter === 'all' ? 'All' : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
           </Button>
-          <Button variant="outlined" endIcon={<ExpandMore />} sx={{ textTransform: 'none', color: 'text.primary', borderColor: 'divider', bgcolor: 'background.paper' }}>
-            Date Range
+          <Menu
+            anchorEl={anchorElStatus}
+            open={Boolean(anchorElStatus)}
+            onClose={() => setAnchorElStatus(null)}
+          >
+            <MenuItem onClick={() => { setStatusFilter('all'); setAnchorElStatus(null); }}>All Statuses</MenuItem>
+            <MenuItem onClick={() => { setStatusFilter('accepted'); setAnchorElStatus(null); }}>Accepted</MenuItem>
+            <MenuItem onClick={() => { setStatusFilter('rejected'); setAnchorElStatus(null); }}>Rejected</MenuItem>
+            <MenuItem onClick={() => { setStatusFilter('pending'); setAnchorElStatus(null); }}>Pending</MenuItem>
+          </Menu>
+
+          {/* Date Filter */}
+          <Button
+            variant="outlined"
+            endIcon={<ExpandMore />}
+            onClick={(e) => setAnchorElDate(e.currentTarget)}
+            sx={{ textTransform: 'none', color: 'text.primary', borderColor: 'divider', bgcolor: dateRange !== 'all' ? 'action.selected' : 'background.paper' }}
+          >
+            Date: {dateRange === 'all' ? 'All Time' : dateRange === 'today' ? 'Last 24h' : dateRange === '7days' ? 'Last 7 Days' : 'Last 30 Days'}
           </Button>
-          <Button variant="outlined" endIcon={<ExpandMore />} sx={{ textTransform: 'none', color: 'text.primary', borderColor: 'divider', bgcolor: 'background.paper' }}>
-            Score Range
+          <Menu
+            anchorEl={anchorElDate}
+            open={Boolean(anchorElDate)}
+            onClose={() => setAnchorElDate(null)}
+          >
+            <MenuItem onClick={() => { setDateRange('all'); setAnchorElDate(null); }}>All Time</MenuItem>
+            <MenuItem onClick={() => { setDateRange('today'); setAnchorElDate(null); }}>Last 24 Hours</MenuItem>
+            <MenuItem onClick={() => { setDateRange('7days'); setAnchorElDate(null); }}>Last 7 Days</MenuItem>
+            <MenuItem onClick={() => { setDateRange('30days'); setAnchorElDate(null); }}>Last 30 Days</MenuItem>
+          </Menu>
+
+          {/* Score Filter */}
+          <Button
+            variant="outlined"
+            endIcon={<ExpandMore />}
+            onClick={(e) => setAnchorElScore(e.currentTarget)}
+            sx={{ textTransform: 'none', color: 'text.primary', borderColor: 'divider', bgcolor: scoreRange !== 'all' ? 'action.selected' : 'background.paper' }}
+          >
+            Score: {scoreRange === 'all' ? 'All' : scoreRange.charAt(0).toUpperCase() + scoreRange.slice(1)}
           </Button>
+          <Menu
+            anchorEl={anchorElScore}
+            open={Boolean(anchorElScore)}
+            onClose={() => setAnchorElScore(null)}
+          >
+            <MenuItem onClick={() => { setScoreRange('all'); setAnchorElScore(null); }}>All Scores</MenuItem>
+            <MenuItem onClick={() => { setScoreRange('high'); setAnchorElScore(null); }}>High (8-10)</MenuItem>
+            <MenuItem onClick={() => { setScoreRange('medium'); setAnchorElScore(null); }}>Medium (5-7)</MenuItem>
+            <MenuItem onClick={() => { setScoreRange('low'); setAnchorElScore(null); }}>Low (0-4)</MenuItem>
+          </Menu>
         </Box>
       </Box>
 
