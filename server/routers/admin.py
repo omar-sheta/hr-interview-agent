@@ -708,6 +708,23 @@ async def get_admin_analytics(admin_id: str = Query(..., description="Admin user
     # Sort by date desc
     pending_reviews.sort(key=lambda x: x.get("submitted_at") or "", reverse=True)
 
+    # Calculate unique candidates for funnel
+    # Only count candidates that currently exist in the users list
+    existing_candidate_ids = set(str(u.get("id")) for u in users if u.get("role") == "candidate")
+    
+    unique_completed_candidates = set()
+    unique_passed_candidates = set()
+    
+    for r in results:
+        c_id = str(r.get("candidate_id"))
+        if c_id in existing_candidate_ids:
+            unique_completed_candidates.add(c_id)
+            if r.get("status") == "accepted":
+                unique_passed_candidates.add(c_id)
+            
+    unique_completed_count = len(unique_completed_candidates)
+    unique_passed_count = len(unique_passed_candidates)
+
     return {
         "metrics": [
             {"label": "Total Interviews", "value": str(total_interviews), "trend": "+0", "trendUp": True},
@@ -717,8 +734,8 @@ async def get_admin_analytics(admin_id: str = Query(..., description="Admin user
         ],
         "funnel": [
             {"name": "Total Candidates", "value": total_candidates, "color": "#2196F3"},
-            {"name": "Completed", "value": completed_interviews, "color": "#4CAF50"},
-            {"name": "Passed", "value": passed_count, "color": "#FFC107"},
+            {"name": "Completed", "value": unique_completed_count, "color": "#4CAF50"},
+            {"name": "Passed", "value": unique_passed_count, "color": "#FFC107"},
         ],
         "completion_over_time": last_7_days,
         "pending_reviews": pending_reviews
