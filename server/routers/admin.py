@@ -118,7 +118,7 @@ REQUIREMENTS:
         
         if questions and len(questions) > 0:
             refined = questions[0]
-            logger.info(f"✅ Question refined successfully")
+            logger.info("✅ Question refined successfully")
             return {"refined_question": refined}
         else:
             raise HTTPException(status_code=500, detail="Failed to generate refined question")
