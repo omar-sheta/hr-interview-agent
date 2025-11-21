@@ -983,8 +983,10 @@ async def get_candidate_details(
             assigned_interviews.append({
                 "id": interview.get("id"),
                 "title": interview.get("title"),
+                "description": interview.get("description"),
                 "status": "Completed" if is_completed else "Pending",
                 "deadline": interview.get("deadline"),
+                "config": interview.get("config", {}),
             })
             
     return {
