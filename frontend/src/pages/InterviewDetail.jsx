@@ -4,8 +4,7 @@ import {
     Box, Typography, Paper, Grid, Chip, Button,
     CircularProgress, Alert, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Avatar, IconButton,
-    Card, CardContent, useTheme, alpha, Dialog, DialogTitle,
-    DialogContent, DialogActions
+    Card, CardContent, useTheme, alpha
 } from '@mui/material';
 import {
     ArrowBack, Visibility, CheckCircle, Pending,
@@ -27,8 +26,7 @@ const InterviewDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // AI Recommendation Dialog State
-    const [recommendDialog, setRecommendDialog] = useState(false);
+    // AI Recommendation State
     const [recommendation, setRecommendation] = useState(null);
     const [loadingRecommendation, setLoadingRecommendation] = useState(false);
 
@@ -70,7 +68,6 @@ const InterviewDetail = () => {
                 { params: { admin_id: user.user_id } }
             );
             setRecommendation(data);
-            setRecommendDialog(true);
         } catch (err) {
             console.error('Failed to get recommendation:', err);
             alert(err.response?.data?.detail || 'Failed to get AI recommendations');
@@ -156,21 +153,6 @@ const InterviewDetail = () => {
                         </Card>
                     </Grid>
                 </Grid>
-
-                {/* AI Recommendation Button */}
-                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button
-                        variant="contained"
-                        color="secondary"
-                        size="large"
-                        startIcon={<Psychology />}
-                        onClick={handleGetRecommendation}
-                        disabled={loadingRecommendation || stats?.completed === 0}
-                        sx={{ px: 4 }}
-                    >
-                        {loadingRecommendation ? 'Analyzing...' : 'Get AI Recommendations'}
-                    </Button>
-                </Box>
             </Box>
 
             {/* Candidates List */}
@@ -244,24 +226,33 @@ const InterviewDetail = () => {
                 </TableContainer>
             </Paper>
 
-            {/* AI Recommendation Dialog */}
-            <Dialog
-                open={recommendDialog}
-                onClose={() => setRecommendDialog(false)}
-                maxWidth="md"
-                fullWidth
-            >
-                <DialogTitle>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Psychology color="secondary" />
-                        <Typography variant="h6" fontWeight="bold">AI Hiring Recommendations</Typography>
+            {/* AI Recommendations Section */}
+            <Box sx={{ mt: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" fontWeight="bold">AI Hiring Recommendations</Typography>
+                    <Button
+                        variant="contained"
+                        color="secondary"
+                        startIcon={<Psychology />}
+                        onClick={handleGetRecommendation}
+                        disabled={loadingRecommendation || stats?.completed === 0}
+                        size="small"
+                    >
+                        {loadingRecommendation ? 'Analyzing...' : 'Get AI Recommendations'}
+                    </Button>
+                </Box>
+
+                {loadingRecommendation && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                        <CircularProgress />
                     </Box>
-                </DialogTitle>
-                <DialogContent>
-                    {recommendation && (
-                        <Box sx={{ mt: 2 }}>
-                            {/* Overall Stats */}
-                            <Box sx={{ mb: 3, p: 2, borderRadius: 2, bgcolor: 'background.default' }}>
+                )}
+
+                {recommendation && !loadingRecommendation && (
+                    <Grid container spacing={2}>
+                        {/* Stats */}
+                        <Grid item xs={12}>
+                            <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
                                 <Grid container spacing={2}>
                                     <Grid item xs={6}>
                                         <Typography variant="caption" color="text.secondary">Total Candidates</Typography>
@@ -274,56 +265,53 @@ const InterviewDetail = () => {
                                         </Typography>
                                     </Grid>
                                 </Grid>
-                            </Box>
+                            </Paper>
+                        </Grid>
 
-                            {/* Top Candidates */}
-                            {recommendation.recommendations?.top_candidates && (
-                                <Box sx={{ mb: 3 }}>
+                        {/* Top Candidates */}
+                        {recommendation.recommendations?.top_candidates && (
+                            <Grid item xs={12} md={6}>
+                                <Paper sx={{ p: 3, height: '100%', bgcolor: alpha(theme.palette.success.main, 0.05), borderLeft: 3, borderColor: 'success.main' }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                                         <CheckCircle color="success" />
                                         <Typography variant="subtitle1" fontWeight="bold">Recommended for Hire</Typography>
                                     </Box>
-                                    <Paper sx={{ p: 2, bgcolor: alpha(theme.palette.success.main, 0.05), borderLeft: 3, borderColor: 'success.main' }}>
-                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                                            {recommendation.recommendations.top_candidates}
-                                        </Typography>
-                                    </Paper>
-                                </Box>
-                            )}
+                                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                                        {recommendation.recommendations.top_candidates}
+                                    </Typography>
+                                </Paper>
+                            </Grid>
+                        )}
 
-                            {/* Concerns */}
-                            {recommendation.recommendations?.concerns && (
-                                <Box sx={{ mb: 3 }}>
+                        {/* Concerns */}
+                        {recommendation.recommendations?.concerns && (
+                            <Grid item xs={12} md={6}>
+                                <Paper sx={{ p: 3, height: '100%', bgcolor: alpha(theme.palette.warning.main, 0.05), borderLeft: 3, borderColor: 'warning.main' }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                                         <Pending color="warning" />
                                         <Typography variant="subtitle1" fontWeight="bold">Performance Concerns</Typography>
                                     </Box>
-                                    <Paper sx={{ p: 2, bgcolor: alpha(theme.palette.warning.main, 0.05), borderLeft: 3, borderColor: 'warning.main' }}>
-                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                                            {recommendation.recommendations.concerns}
-                                        </Typography>
-                                    </Paper>
-                                </Box>
-                            )}
+                                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                                        {recommendation.recommendations.concerns}
+                                    </Typography>
+                                </Paper>
+                            </Grid>
+                        )}
 
-                            {/* Overall Insight */}
-                            {recommendation.recommendations?.overall_insight && (
-                                <Box>
+                        {/* Overall Insight */}
+                        {recommendation.recommendations?.overall_insight && (
+                            <Grid item xs={12}>
+                                <Paper sx={{ p: 3, bgcolor: 'background.default' }}>
                                     <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>Overall Assessment</Typography>
-                                    <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
-                                        <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
-                                            {recommendation.recommendations.overall_insight}
-                                        </Typography>
-                                    </Paper>
-                                </Box>
-                            )}
-                        </Box>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setRecommendDialog(false)}>Close</Button>
-                </DialogActions>
-            </Dialog>
+                                    <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                                        {recommendation.recommendations.overall_insight}
+                                    </Typography>
+                                </Paper>
+                            </Grid>
+                        )}
+                    </Grid>
+                )}
+            </Box>
         </motion.div>
     );
 };

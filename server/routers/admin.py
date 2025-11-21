@@ -608,27 +608,56 @@ async def get_interview_recommendations(
     # Get candidate info
     users = data_manager.load_users()
     
-    # Build candidate summaries
+    # Build candidate summaries with feedback
     candidate_summaries = []
     for result in interview_results:
-        score = result.get("overall_score") or result.get("score") or 0
+        # Get score correctly
+        scores = result.get("scores", {})
+        if isinstance(scores, dict):
+            score = scores.get("overall", 0) or scores.get("average", 0)
+        else:
+            score = result.get("overall_score", 0) or result.get("score", 0)
+        
         candidate_id = result.get("candidate_id")
         candidate = next((u for u in users if str(u.get("id")) == str(candidate_id)), None)
         candidate_name = result.get("candidate_username") or (candidate.get("username") if candidate else "Unknown")
+        
+        # Get feedback summary
+        feedback = result.get("feedback", [])
+        feedback_text = ""
+        if isinstance(feedback, list) and len(feedback) > 0:
+            positive_items = []
+            negative_items = []
+            for item in feedback[:3]:  # Top 3 questions
+                if isinstance(item, dict):
+                    q_score = item.get("score", 0)
+                    q_feedback = item.get("feedback", "")
+                    if q_score >= 7:
+                        positive_items.append(f"Strong answer (Score: {q_score})")
+                    elif q_score < 5:
+                        negative_items.append(f"Weak answer (Score: {q_score}): {q_feedback[:50]}")
+            
+            if positive_items:
+                feedback_text += "Strengths: " + ", ".join(positive_items[:2])
+            if negative_items:
+                if feedback_text:
+                    feedback_text += " | "
+                feedback_text += "Weaknesses: " + ", ".join(negative_items[:2])
         
         candidate_summaries.append({
             "name": candidate_name,
             "score": score,
             "session_id": result.get("session_id"),
-            "status": result.get("status", "pending")
+            "status": result.get("status", "pending"),
+            "feedback": feedback_text
         })
     
     # Sort by score descending
     candidate_summaries.sort(key=lambda x: x["score"], reverse=True)
     
-    # Build summary text for AI
+    # Build summary text for AI with feedback
     candidates_text = "\n".join([
-        f"- {c['name']}: Score {c['score']:.1f}/10 (Current Status: {c['status']})"
+        f"- {c['name']}: Score {c['score']:.1f}/10 (Status: {c['status']}){' - ' + c['feedback'] if c['feedback'] else ''}"
         for c in candidate_summaries
     ])
     
@@ -643,8 +672,8 @@ Candidate Performance Summary:
 
 Based on these results, provide hiring recommendations:
 
-1. TOP CANDIDATES: List 1-3 candidates recommended for ACCEPTANCE (with brief reason)
-2. CONCERNS: Any candidates with concerning performance
+1. TOP CANDIDATES: List 1-3 candidates recommended for ACCEPTANCE (with brief reason based on their scores and feedback)
+2. CONCERNS: Any candidates with concerning performance (mention specific weaknesses)
 3. OVERALL INSIGHT: One sentence about the candidate pool quality
 
 Format your response EXACTLY as:
