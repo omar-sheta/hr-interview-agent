@@ -447,24 +447,23 @@ class DataManager:
         if 'responses' not in session:
             session['responses'] = []
         
-        # Check for existing response for this question
-        existing_index = None
+        # Ensure question_index is int
         try:
             question_index = int(question_index)
         except (ValueError, TypeError):
-            pass # Keep as is if not convertible
+            print(f"❌ Invalid question_index: {question_index}")
+            return False
 
+        # Check for existing response for this question
+        existing_index = None
         for i, resp in enumerate(session['responses']):
             resp_idx = resp.get('question_index')
-            # Try to compare as ints if possible
             try:
-                if int(resp_idx) == int(question_index):
+                if int(resp_idx) == question_index:
                     existing_index = i
                     break
             except (ValueError, TypeError):
-                if resp_idx == question_index:
-                    existing_index = i
-                    break
+                continue
         
         response_data = {
             'question_index': question_index,

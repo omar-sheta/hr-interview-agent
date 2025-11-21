@@ -44,6 +44,9 @@ async def submit_response(
 ):
     """Submit interview response by referencing a stored transcript."""
     try:
+        import logging
+        logger = logging.getLogger("hr_interview_agent.interview")
+        logger.info(f"📥 Received submission for session {session_id}, question_index={question_index} (type: {type(question_index)})")
         return submit_interview_response(session_id, question_index, transcript_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to submit response: {str(e)}")
