@@ -583,72 +583,93 @@ async def delete_admin_result(
     raise HTTPException(status_code=404, detail="Result not found")
 
 
-@router.post("/api/admin/results/{session_id}/recommend")
-async def get_ai_recommendation(
-    session_id: str,
+@router.post("/api/admin/interviews/{interview_id}/recommend")
+async def get_interview_recommendations(
+    interview_id: str,
     admin_id: str = Query(..., description="Admin user id"),
 ):
-    """Get AI recommendation for accepting or rejecting a candidate based on their interview performance."""
+    """Get AI recommendations for all candidates in an interview."""
     require_admin(admin_id)
     
-    # Get the result
-    results = data_manager.load_results()
-    result = next((r for r in results if r.get("session_id") == session_id), None)
-    
-    if not result:
-        raise HTTPException(status_code=404, detail="Result not found")
-    
-    # Get interview details
+    # Get interview
     interviews = data_manager.load_interviews()
-    interview = next((i for i in interviews if str(i.get("id")) == str(result.get("interview_id"))), None)
+    interview = next((i for i in interviews if str(i.get("id")) == str(interview_id)), None)
     
-    # Prepare data for AI
-    score = result.get("overall_score") or result.get("score") or 0
-    feedback = result.get("feedback", [])
-    interview_title = result.get("interview_title") or (interview.get("title") if interview else "Unknown Interview")
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
     
-    # Build summary from feedback
-    feedback_summary = ""
-    if isinstance(feedback, list) and len(feedback) > 0:
-        feedback_items = []
-        for idx, item in enumerate(feedback[:3]):  # Limit to first 3 for brevity
-            if isinstance(item, dict):
-                q_score = item.get("score", 0)
-                feedback_items.append(f"Question {idx+1}: Score {q_score}/10")
-        if feedback_items:
-            feedback_summary = ", ".join(feedback_items)
+    # Get all results for this interview
+    results = data_manager.load_results()
+    interview_results = [r for r in results if str(r.get("interview_id")) == str(interview_id)]
     
-    # Construct prompt for Ollama
-    prompt = f"""You are an HR recruitment assistant. Based on the following interview performance data, provide a hiring recommendation.
+    if not interview_results:
+        raise HTTPException(status_code=404, detail="No completed interviews found")
+    
+    # Get candidate info
+    users = data_manager.load_users()
+    
+    # Build candidate summaries
+    candidate_summaries = []
+    for result in interview_results:
+        score = result.get("overall_score") or result.get("score") or 0
+        candidate_id = result.get("candidate_id")
+        candidate = next((u for u in users if str(u.get("id")) == str(candidate_id)), None)
+        candidate_name = result.get("candidate_username") or (candidate.get("username") if candidate else "Unknown")
+        
+        candidate_summaries.append({
+            "name": candidate_name,
+            "score": score,
+            "session_id": result.get("session_id"),
+            "status": result.get("status", "pending")
+        })
+    
+    # Sort by score descending
+    candidate_summaries.sort(key=lambda x: x["score"], reverse=True)
+    
+    # Build summary text for AI
+    candidates_text = "\n".join([
+        f"- {c['name']}: Score {c['score']:.1f}/10 (Current Status: {c['status']})"
+        for c in candidate_summaries
+    ])
+    
+    # Construct prompt
+    prompt = f"""You are an HR recruitment assistant analyzing candidates for a position.
 
-Interview Position: {interview_title}
-Overall Score: {score}/10
-Performance Details: {feedback_summary if feedback_summary else "No detailed feedback available"}
+Interview Position: {interview.get('title')}
+Total Candidates: {len(candidate_summaries)}
 
-Analyze this performance and provide:
-1. DECISION: Should this candidate be ACCEPTED or REJECTED?
-2. REASONING: Provide 2-3 sentences explaining your recommendation.
+Candidate Performance Summary:
+{candidates_text}
 
-Format your response EXACTLY as follows:
-DECISION: [ACCEPT or REJECT]
-REASONING: [Your explanation here]
+Based on these results, provide hiring recommendations:
 
-Be decisive and practical. A score above 7 typically indicates strong performance."""
+1. TOP CANDIDATES: List 1-3 candidates recommended for ACCEPTANCE (with brief reason)
+2. CONCERNS: Any candidates with concerning performance
+3. OVERALL INSIGHT: One sentence about the candidate pool quality
+
+Format your response EXACTLY as:
+TOP CANDIDATES:
+[List here]
+
+CONCERNS:
+[List here]
+
+OVERALL INSIGHT:
+[Your insight]"""
 
     try:
         import requests
         from ..config import settings
         
-        # Call Ollama
         response = requests.post(
             f"{settings.OLLAMA_BASE_URL}/api/generate",
             json={
                 "model": "gemma2:2b",
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0.3}
+                "options": {"temperature": 0.4}
             },
-            timeout=30
+            timeout=45
         )
         
         if response.status_code != 200:
@@ -656,31 +677,38 @@ Be decisive and practical. A score above 7 typically indicates strong performanc
         
         ai_response = response.json().get("response", "")
         
-        # Parse response
-        decision = "PENDING"
-        reasoning = "Unable to generate recommendation"
+        # Parse sections
+        top_candidates = ""
+        concerns = ""
+        insight = ""
         
-        if "DECISION:" in ai_response and "REASONING:" in ai_response:
-            parts = ai_response.split("REASONING:")
-            decision_part = parts[0].replace("DECISION:", "").strip().upper()
-            reasoning = parts[1].strip() if len(parts) > 1 else reasoning
+        if "TOP CANDIDATES:" in ai_response:
+            parts = ai_response.split("CONCERNS:")
+            top_part = parts[0].replace("TOP CANDIDATES:", "").strip()
+            top_candidates = top_part
             
-            if "ACCEPT" in decision_part:
-                decision = "ACCEPT"
-            elif "REJECT" in decision_part:
-                decision = "REJECT"
+            if len(parts) > 1:
+                concern_parts = parts[1].split("OVERALL INSIGHT:")
+                concerns = concern_parts[0].strip()
+                if len(concern_parts) > 1:
+                    insight = concern_parts[1].strip()
         
         return {
-            "session_id": session_id,
-            "decision": decision,
-            "reasoning": reasoning,
-            "score": score,
-            "confidence": "high" if score >= 8 or score < 4 else "medium"
+            "interview_id": interview_id,
+            "interview_title": interview.get("title"),
+            "total_candidates": len(candidate_summaries),
+            "candidates": candidate_summaries,
+            "recommendations": {
+                "top_candidates": top_candidates,
+                "concerns": concerns,
+                "overall_insight": insight
+            },
+            "avg_score": sum(c["score"] for c in candidate_summaries) / len(candidate_summaries) if candidate_summaries else 0
         }
         
     except Exception as e:
-        logger.error(f"Failed to get AI recommendation: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate recommendation: {str(e)}")
+        logger.error(f"Failed to get interview recommendations: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate recommendations: {str(e)}")
 
 
 
