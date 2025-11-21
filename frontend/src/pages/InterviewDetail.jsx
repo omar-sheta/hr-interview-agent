@@ -4,11 +4,12 @@ import {
     Box, Typography, Paper, Grid, Chip, Button,
     CircularProgress, Alert, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Avatar, IconButton,
-    Card, CardContent, useTheme, alpha
+    Card, CardContent, useTheme, alpha,
+    Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, TextField
 } from '@mui/material';
 import {
     ArrowBack, Visibility, CheckCircle, Pending,
-    Group, AssignmentTurnedIn, Star, Psychology
+    Group, AssignmentTurnedIn, Star, Psychology, Edit
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import api from '../api/client';
@@ -29,6 +30,10 @@ const InterviewDetail = () => {
     // AI Recommendation State
     const [recommendation, setRecommendation] = useState(null);
     const [loadingRecommendation, setLoadingRecommendation] = useState(false);
+
+    // Deadline Edit State
+    const [editDeadlineOpen, setEditDeadlineOpen] = useState(false);
+    const [newDeadline, setNewDeadline] = useState('');
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -86,6 +91,27 @@ const InterviewDetail = () => {
         }
     };
 
+    const handleOpenEditDeadline = () => {
+        setNewDeadline(interview.deadline || '');
+        setEditDeadlineOpen(true);
+    };
+
+    const handleSaveDeadline = async () => {
+        try {
+            await api.put(`/api/admin/interviews/${id}`, {
+                admin_id: user.user_id,
+                deadline: newDeadline || null
+            });
+
+            // Update local state
+            setInterview({ ...interview, deadline: newDeadline });
+            setEditDeadlineOpen(false);
+        } catch (err) {
+            console.error('Failed to update deadline:', err);
+            alert('Failed to update deadline');
+        }
+    };
+
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
@@ -127,14 +153,28 @@ const InterviewDetail = () => {
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
                     {interview?.description}
                 </Typography>
-                {interview?.deadline && (
-                    <Chip
-                        label={`Deadline: ${new Date(interview.deadline).toLocaleString()}`}
-                        color="warning"
-                        size="small"
-                        sx={{ mb: 3 }}
-                    />
-                )}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                    {interview?.deadline ? (
+                        <Chip
+                            label={`Deadline: ${new Date(interview.deadline).toLocaleString()}`}
+                            color="warning"
+                            size="small"
+                            onDelete={handleOpenEditDeadline}
+                            deleteIcon={<Edit />}
+                            onClick={handleOpenEditDeadline}
+                        />
+                    ) : (
+                        <Button
+                            startIcon={<Edit />}
+                            size="small"
+                            variant="outlined"
+                            color="warning"
+                            onClick={handleOpenEditDeadline}
+                        >
+                            Set Deadline
+                        </Button>
+                    )}
+                </Box>
 
                 <Grid container spacing={3}>
                     <Grid item xs={12} sm={4}>
@@ -333,6 +373,31 @@ const InterviewDetail = () => {
                     </Grid>
                 )}
             </Box>
+            {/* Edit Deadline Dialog */}
+            <Dialog open={editDeadlineOpen} onClose={() => setEditDeadlineOpen(false)}>
+                <DialogTitle>Edit Interview Deadline</DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ mb: 2 }}>
+                        Set a deadline for candidates to complete this interview.
+                    </DialogContentText>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        id="deadline"
+                        label="Deadline"
+                        type="datetime-local"
+                        fullWidth
+                        variant="outlined"
+                        value={newDeadline}
+                        onChange={(e) => setNewDeadline(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setEditDeadlineOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSaveDeadline} variant="contained">Save</Button>
+                </DialogActions>
+            </Dialog>
         </motion.div>
     );
 };
