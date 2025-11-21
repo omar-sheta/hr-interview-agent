@@ -127,6 +127,14 @@ const InterviewDetail = () => {
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
                     {interview?.description}
                 </Typography>
+                {interview?.deadline && (
+                    <Chip
+                        label={`Deadline: ${new Date(interview.deadline).toLocaleString()}`}
+                        color="warning"
+                        size="small"
+                        sx={{ mb: 3 }}
+                    />
+                )}
 
                 <Grid container spacing={3}>
                     <Grid item xs={12} sm={4}>

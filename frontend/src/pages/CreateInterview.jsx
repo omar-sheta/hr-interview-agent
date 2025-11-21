@@ -77,6 +77,7 @@ const CreateInterview = () => {
         use_ai_generation: true,
         num_questions: 5,
         questions: [],
+        deadline: '',  // Add deadline
     });
 
     // Fetch candidates when component mounts
@@ -299,6 +300,7 @@ const CreateInterview = () => {
                 use_ai_generation: false, // We already generated them
                 active: true,
                 allowed_candidate_ids: selectedCandidates, // Include selected candidates
+                deadline: formData.deadline || null,  // Add deadline
                 config: {
                     questions: formData.questions,
                     ai_generated: formData.use_ai_generation,
@@ -383,6 +385,18 @@ const CreateInterview = () => {
                                         name="description"
                                         value={formData.description}
                                         onChange={handleChange}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <TextField
+                                        fullWidth
+                                        type="datetime-local"
+                                        label="Deadline"
+                                        name="deadline"
+                                        value={formData.deadline}
+                                        onChange={handleChange}
+                                        InputLabelProps={{ shrink: true }}
+                                        helperText="Optional deadline for candidate submissions"
                                     />
                                 </Grid>
                             </Grid>
