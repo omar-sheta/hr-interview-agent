@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 
 const SILENCE_THRESHOLD = 0.01;
-const SILENCE_DURATION_MS = 10000; // 10 seconds of silence before auto-stop
+const SILENCE_DURATION_MS = 5000;
 
 export const useAudioRecorder = ({ onRecordingComplete, onMicIntensityChange }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -84,11 +84,15 @@ export const useAudioRecorder = ({ onRecordingComplete, onMicIntensityChange }) 
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
+          console.log(`[RECORDER] Chunk ${audioChunksRef.current.length}: ${event.data.size} bytes, total chunks: ${audioChunksRef.current.length}`);
         }
       };
 
       mediaRecorderRef.current.onstop = () => {
+        const totalSize = audioChunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
+        console.log(`[RECORDER] Recording stopped. Total chunks: ${audioChunksRef.current.length}, total size: ${totalSize} bytes`);
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        console.log(`[RECORDER] Final blob size: ${audioBlob.size} bytes`);
         if (onRecordingComplete) {
           onRecordingComplete(audioBlob);
         }
@@ -98,7 +102,8 @@ export const useAudioRecorder = ({ onRecordingComplete, onMicIntensityChange }) 
         setIsProcessing(true);
       };
 
-      mediaRecorderRef.current.start();
+      mediaRecorderRef.current.start(1000); // Collect data every 1 second
+      console.log('[RECORDER] Recording started with 1s timeslice');
 
     } catch (err) {
       console.error("Error starting recording:", err);
