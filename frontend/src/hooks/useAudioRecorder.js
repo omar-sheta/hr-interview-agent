@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 
 const SILENCE_THRESHOLD = 0.01;
-const SILENCE_DURATION_MS = 5000;
+const SILENCE_DURATION_MS = 10000; // 10 seconds of silence before auto-stop
 
 export const useAudioRecorder = ({ onRecordingComplete, onMicIntensityChange }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -37,7 +37,7 @@ export const useAudioRecorder = ({ onRecordingComplete, onMicIntensityChange }) 
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
+
       setIsRecording(true);
       setIsProcessing(false);
       hasSpokenRef.current = false;
@@ -46,7 +46,7 @@ export const useAudioRecorder = ({ onRecordingComplete, onMicIntensityChange }) 
 
       const context = new (window.AudioContext || window.webkitAudioContext)();
       audioContextRef.current = context;
-      
+
       const source = context.createMediaStreamSource(stream);
       mediaStreamSourceRef.current = source;
 
