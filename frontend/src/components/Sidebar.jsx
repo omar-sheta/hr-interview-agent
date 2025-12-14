@@ -23,7 +23,7 @@ const Sidebar = () => {
         { text: 'Candidates', icon: <Group />, path: '/admin/candidates' },
         { text: 'Results', icon: <AssignmentTurnedIn />, path: '/admin/results' },
         { text: 'Analytics', icon: <BarChart />, path: '/admin/analytics' },
-        { text: 'Settings', icon: <Settings />, path: '/admin/settings' },
+        { text: 'Settings', icon: <Settings />, path: '/admin/settings', disabled: true },
     ];
 
     return (
@@ -70,15 +70,18 @@ const Sidebar = () => {
                     return (
                         <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
                             <ListItemButton
-                                component={Link}
-                                to={item.path}
+                                component={item.disabled ? 'div' : Link}
+                                to={item.disabled ? undefined : item.path}
+                                disabled={item.disabled}
                                 sx={{
                                     borderRadius: 2,
                                     bgcolor: isActive ? alpha(theme.palette.primary.main, 0.15) : 'transparent',
-                                    color: isActive ? theme.palette.primary.main : '#94a3b8',
+                                    color: item.disabled ? 'text.disabled' : (isActive ? theme.palette.primary.main : '#94a3b8'),
+                                    cursor: item.disabled ? 'not-allowed' : 'pointer',
+                                    opacity: item.disabled ? 0.5 : 1,
                                     '&:hover': {
-                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                        color: 'white',
+                                        bgcolor: item.disabled ? 'transparent' : alpha(theme.palette.primary.main, 0.1),
+                                        color: item.disabled ? 'text.disabled' : 'white',
                                     },
                                 }}
                             >

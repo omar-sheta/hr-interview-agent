@@ -11,7 +11,9 @@
 
 ### 🤖 AI-Powered Automation
 - **Dynamic Question Generation**: AI creates role-specific questions tailored to job descriptions using LLMs
+- **Question Refinement**: AI-assisted editing and reordering of interview questions
 - **Intelligent Evaluation**: Multi-dimensional scoring (0-10 scale) with detailed qualitative feedback
+- **Hiring Recommendations**: AI generates summary insights and "Hire/No Hire" recommendations
 - **Real-Time Processing**: Speech-to-text powered interviews with instant transcription
 - **Smart Analysis**: Evaluates technical accuracy, communication clarity, and depth of understanding
 
@@ -42,9 +44,10 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Python 3.8+** (Python 3.13 recommended)
+- **Python 3.10+** (Python 3.13 recommended)
 - **Node.js 16+** and npm
 - **Ollama** (optional, for local LLM - or use OpenAI API)
+- **macOS (Apple Silicon)** (Required for local Speech-to-Text features via `mlx`)
 
 ### 1️⃣ Clone Repository
 ```bash
@@ -169,41 +172,45 @@ ollama pull gemma2:27b  # Or any model you prefer
 
 ```
 hr-interview-agent/
-├── frontend/                    # React application
+├── frontend/                    # React application (Vite)
 │   ├── src/
-│   │   ├── components/          # Reusable UI components
-│   │   ├── pages/               # Page components (Dashboard, Login, etc.)
-│   │   ├── context/             # React Context (Auth, Theme)
-│   │   ├── hooks/               # Custom React hooks
-│   │   ├── api/                 # API client configuration
-│   │   └── assets/              # Images, logos, icons
+│   │   ├── components/          # Reusable UI (Navbar, StatsCard, etc.)
+│   │   ├── pages/               # Application Pages
+│   │   │   ├── AdminDashboard.jsx   # Admin overview
+│   │   │   ├── AdminInterviews.jsx  # Interview management
+│   │   │   ├── AdminResults.jsx     # Results & Analytics
+│   │   │   ├── CandidateDashboard.jsx # Candidate portal
+│   │   │   └── WorkspacePage.jsx    # Interview session UI
+│   │   ├── context/             # Auth & Theme Context
+│   │   ├── hooks/               # Custom hooks (useAudioRecorder)
+│   │   └── api/                 # Axios client configuration
 │   ├── package.json
 │   └── vite.config.js
 │
 ├── server/                      # FastAPI backend
 │   ├── routers/                 # API route handlers
-│   │   ├── admin.py             # Admin CRUD operations
+│   │   ├── admin.py             # Admin CRUD & Dashboard stats
 │   │   ├── candidate.py         # Candidate endpoints
-│   │   ├── auth.py              # Login/signup
-│   │   ├── interview.py         # Interview session management
-│   │   └── ai.py                # LLM integration (question gen, eval)
+│   │   ├── auth.py              # JWT Authentication
+│   │   ├── interview.py         # Session logic & Evaluation trigger
+│   │   └── ai.py                # LLM integration (Gemma/Llama)
 │   │
-│   ├── services/                # Business logic
-│   │   ├── email_service.py     # Gmail OAuth2
-│   │   ├── email_templates.py   # HTML email templates
-│   │   ├── question_service.py  # AI question generation
-│   │   ├── evaluation_service.py# AI answer evaluation
-│   │   └── stt.py / tts.py      # Speech services
+│   ├── services/                # Business logic layer
+│   │   ├── email_service.py     # Gmail OAuth2 & SMTP
+│   │   ├── question_service.py  # Prompt engineering for questions
+│   │   ├── evaluation_service.py# Scoring & Feedback logic
+│   │   ├── stt.py               # MLX Whisper (Speech-to-Text)
+│   │   └── tts.py               # Piper TTS (Text-to-Speech)
 │   │
 │   ├── models/                  # Pydantic schemas
-│   ├── utils/                   # Helper functions
-│   ├── data/                    # SQLite database + JSON data
-│   ├── main.py                  # FastAPI app entry point
-│   ├── data_manager.py          # Data persistence layer
+│   ├── utils/                   # Helpers & Security
+│   ├── data/                    # SQLite DB & File storage (audio/json)
+│   ├── main.py                  # App entry point
 │   └── requirements.txt
 │
 ├── authorize_gmail.py           # OAuth2 setup script
-├── start_client_server.sh       # Automated startup script
+├── setup_email.sh               # SMTP configuration script
+├── start_client_server.sh       # Unified startup script
 ├── .gitignore
 └── README.md
 ```
@@ -268,6 +275,14 @@ python3 authorize_gmail.py
 The `server/services/email_service.py` will automatically use:
 - `token.json` for OAuth2
 - Falls back to SMTP if OAuth fails
+
+### Alternative: Quick SMTP Setup
+If you prefer not to set up Google Cloud OAuth, you can use a Gmail App Password:
+```bash
+chmod +x setup_email.sh
+./setup_email.sh
+```
+This script helps you configure SMTP credentials and starts the server automatically.
 
 ---
 

@@ -72,19 +72,12 @@ const AdminCandidates = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
         >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+            <Box sx={{ mb: 4 }}>
                 <Typography variant="h4" fontWeight="800" sx={{ letterSpacing: '-0.5px' }}>
                     Candidates
                 </Typography>
-                <Button
-                    variant="contained"
-                    startIcon={<Add />}
-                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
-                    onClick={() => alert('To add a candidate, simply have them sign up or create a new user.')}
-                >
-                    Add Candidate
-                </Button>
             </Box>
+
 
             {loading && <CircularProgress sx={{ mb: 2 }} />}
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
