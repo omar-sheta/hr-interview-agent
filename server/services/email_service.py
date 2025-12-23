@@ -3,13 +3,11 @@ import logging
 import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Optional, List
 from pathlib import Path
 from datetime import datetime
 import base64
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 
 logger = logging.getLogger("hr_interview_agent.email_service")

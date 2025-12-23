@@ -5,12 +5,10 @@ Handles persistent storage of sessions, transcripts, and audio files.
 """
 
 import json
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import shutil
 
 from .database import create_tables, get_db_connection
 
@@ -342,7 +340,6 @@ class DataManager:
         if not user_ids:
             return []
         
-        placeholders = ",".join(["?"] * len(user_ids))
         placeholders = ",".join(["?"] * len(user_ids))
         conn = get_db_connection()
         try:
