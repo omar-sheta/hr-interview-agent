@@ -169,3 +169,6 @@ token.json
 **/client_secret*.json
 **/token.json
 server/piper_voices/en_US-lessac-high.onnx
+
+# Backups
+*.backup
