@@ -46,8 +46,35 @@
 ### Prerequisites
 - **Python 3.10+** (Python 3.13 recommended)
 - **Node.js 16+** and npm
-- **Ollama** (optional, for local LLM - or use OpenAI API)
-- **macOS (Apple Silicon)** (Required for local Speech-to-Text features via `mlx`)
+- **Ollama** (for local LLM - required for AI features)
+- **macOS (Apple Silicon)** (Required for local Speech-to-Text via `mlx-whisper`)
+
+### 🛠️ Install Dependencies
+
+#### 1. Ollama (Local LLM - Required)
+```bash
+# macOS (Homebrew)
+brew install ollama
+
+# Or download directly from https://ollama.ai
+
+# Start Ollama and pull the model
+ollama serve  # Run in background or separate terminal
+ollama pull gemma3:27b  # Or: llama3.1:8b for smaller machines
+```
+
+#### 2. Piper TTS (Text-to-Speech)
+```bash
+# Installed automatically via requirements.txt
+# Voice models are downloaded on first use, or manually:
+python server/download_hq_voices.py
+```
+
+#### 3. MLX-Whisper (Speech-to-Text - Apple Silicon Only)
+```bash
+# Installed automatically via requirements.txt
+# Requires Apple Silicon Mac (M1/M2/M3/M4)
+```
 
 ### 1️⃣ Clone Repository
 ```bash

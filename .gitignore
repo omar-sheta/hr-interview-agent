@@ -172,3 +172,9 @@ server/piper_voices/en_US-lessac-high.onnx
 
 # Backups
 *.backup
+
+# User-specific scripts
+*_user.py
+
+# One-time fix scripts
+fix_*.py
